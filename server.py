@@ -209,7 +209,8 @@ async def upload_image(file: UploadFile = File(...)):
 # Telegram Bot Integration
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-if TELEGRAM_BOT_TOKEN:
+# Only start Telegram bot in production (not in local development)
+if TELEGRAM_BOT_TOKEN and os.getenv("ENVIRONMENT") == "production":
     bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
     
     @bot.message_handler(commands=['start', 'help'])
@@ -308,6 +309,8 @@ Send /post followed by your YAML input:
     bot_thread.start()
     print("✅ Telegram bot started in background")
 
+elif TELEGRAM_BOT_TOKEN:
+    print("⚠️  Telegram bot disabled in local development (set ENVIRONMENT=production to enable)")
 else:
     print("⚠️  TELEGRAM_BOT_TOKEN not found in environment variables")
 
