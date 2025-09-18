@@ -21,12 +21,14 @@ PORT = int(os.getenv("PORT", 8000))
 
 app = FastAPI(title="Standalone Chat Coordinator API")
 
-# CORS for local Next.js dev
+# CORS for local Next.js dev and Vercel deployment
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
+    "https://linkedin-content-generator-sand.vercel.app",
+    "https://*.vercel.app",  # Allow all Vercel preview deployments
 ]
 app.add_middleware(
     CORSMiddleware,
