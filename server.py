@@ -16,6 +16,9 @@ from src.tools.chat_store import ChatStore, Coordinator
 
 load_dotenv()
 
+# Get port from environment variable, default to 8000
+PORT = int(os.getenv("PORT", 8000))
+
 app = FastAPI(title="Standalone Chat Coordinator API")
 
 # CORS for local Next.js dev
