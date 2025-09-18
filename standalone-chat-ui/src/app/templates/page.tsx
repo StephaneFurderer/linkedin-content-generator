@@ -69,8 +69,8 @@ export default function TemplatesPage() {
       if (!response.ok) throw new Error('Failed to fetch templates');
       const data = await response.json();
       setTemplates(data.templates);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -97,8 +97,8 @@ export default function TemplatesPage() {
       await fetchTemplates();
       resetForm();
       setShowForm(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -115,8 +115,8 @@ export default function TemplatesPage() {
       if (!response.ok) throw new Error('Failed to delete template');
       
       await fetchTemplates();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 

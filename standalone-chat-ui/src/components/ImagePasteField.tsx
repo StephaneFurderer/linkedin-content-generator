@@ -59,8 +59,8 @@ export default function ImagePasteField({
       const result = await response.json();
       onChange(result.public_url);
       
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsUploading(false);
     }
@@ -110,6 +110,7 @@ export default function ImagePasteField({
             ✅ Image URL ready
           </div>
           <div className="max-w-xs">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src={value} 
               alt="Preview" 

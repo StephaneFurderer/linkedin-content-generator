@@ -17,7 +17,7 @@ interface Conversation {
   title: string;
   status: string;
   summary: string | null;
-  state: any;
+  state: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,8 +55,8 @@ export default function PostDetailPage() {
 
         if (msgError) throw msgError;
         setMessages(msgData || []);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
       }
@@ -96,7 +96,7 @@ export default function PostDetailPage() {
         throw new Error('Failed to format content');
       }
 
-      const data = await response.json();
+      // const data = await response.json(); // Unused variable removed
       
       // Refresh the messages to show the new formatted content
       const { data: msgData, error: msgError } = await supabase
@@ -189,7 +189,7 @@ export default function PostDetailPage() {
             </button>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            Select a format to transform the Writer's content into a structured LinkedIn post.
+            Select a format to transform the Writer&apos;s content into a structured LinkedIn post.
           </p>
         </div>
       )}

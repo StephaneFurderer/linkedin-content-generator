@@ -9,7 +9,7 @@ interface Conversation {
   status: string
   created_at: string
   updated_at: string
-  state: any
+  state: Record<string, unknown> | null
 }
 
 export default function Posts() {
@@ -41,7 +41,7 @@ export default function Posts() {
     fetchConversations()
   }, [])
 
-  const getStatusBadge = (status: string, state: any) => {
+  const getStatusBadge = (status: string, state: Record<string, unknown> | null) => {
     if (status === 'completed' || state?.user_satisfied) {
       return <span className="inline-block bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Completed</span>
     }

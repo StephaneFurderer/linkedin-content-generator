@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Link from 'next/link'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -26,24 +27,24 @@ export default function RootLayout({
                     <h1 className="text-xl font-bold text-gray-900">Standalone Chat</h1>
                   </div>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                    <a
+                    <Link
                       href="/generate-post"
                       className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
                     >
                       Generate Post
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/posts"
                       className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
                     >
                       My Posts
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/templates"
                       className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
                     >
                       Templates
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>
