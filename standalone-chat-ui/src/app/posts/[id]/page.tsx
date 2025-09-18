@@ -79,7 +79,7 @@ export default function PostDetailPage() {
         return;
       }
 
-      const response = await fetch('http://127.0.0.1:8000/format-agent/transform', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/format-agent/transform`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

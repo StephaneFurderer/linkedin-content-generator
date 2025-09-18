@@ -19,7 +19,7 @@ export default function GeneratePost() {
 
     setIsLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:8000/coordinator/start', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/coordinator/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

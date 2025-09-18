@@ -65,7 +65,7 @@ export default function TemplatesPage() {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('http://localhost:8000/templates');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates`);
       if (!response.ok) throw new Error('Failed to fetch templates');
       const data = await response.json();
       setTemplates(data.templates);
@@ -86,7 +86,7 @@ export default function TemplatesPage() {
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
       };
 
-      const response = await fetch('http://localhost:8000/templates', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -108,7 +108,7 @@ export default function TemplatesPage() {
     if (!confirm('Are you sure you want to delete this template?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/templates/${templateId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/${templateId}`, {
         method: 'DELETE'
       });
 
