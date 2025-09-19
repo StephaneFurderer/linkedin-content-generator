@@ -71,7 +71,7 @@ export default function HomePage() {
   
   // Panel 2: Chat state
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [messages, setMessages] = useState<any[]>([])
+  const [messages, setMessages] = useState<Record<string, unknown>[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [selectedFormat, setSelectedFormat] = useState('')
   const [isFormatting, setIsFormatting] = useState(false)
