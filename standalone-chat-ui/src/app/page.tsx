@@ -482,8 +482,12 @@ export default function HomePage() {
       }
 
       console.log('Request body:', requestBody)
+      console.log('API URL:', process.env.NEXT_PUBLIC_API_URL)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/format-agent/transform`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      console.log('Using API URL:', apiUrl)
+
+      const response = await fetch(`${apiUrl}/format-agent/transform`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -511,7 +515,13 @@ export default function HomePage() {
       alert('Feedback submitted successfully!')
     } catch (error) {
       console.error('Error submitting feedback:', error)
-      alert(`Failed to submit feedback: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      
+      // Handle different types of errors
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        alert('Network error: Could not connect to the server. Please check your internet connection and try again.')
+      } else {
+        alert(`Failed to submit feedback: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     } finally {
       setIsSubmittingFeedback(false)
     }
