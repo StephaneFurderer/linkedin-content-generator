@@ -333,8 +333,23 @@ export default function HomePage() {
     const finalEditorMessages = messages.filter(msg => msg.agent_name === 'Final Editor')
     if (finalEditorMessages.length > 0) {
       const latestFinalEditorMessage = finalEditorMessages[finalEditorMessages.length - 1]
-      setFinalContent(latestFinalEditorMessage.content || '')
-      return
+      
+      // Check if the message contains actual content or just a status message
+      const content = latestFinalEditorMessage.content || ''
+      
+      // If it's just a status message, try to get the actual content from the message metadata
+      if (content.includes('Final post content saved with status:')) {
+        // Try to get the actual content from the conversation state
+        if (conversation.state?.final_content) {
+          setFinalContent(conversation.state.final_content as string)
+          return
+        }
+        // If no state content, skip to next priority
+      } else {
+        // This is actual content, use it
+        setFinalContent(content)
+        return
+      }
     }
     
     // 2. Check for saved content in conversation state - second priority
@@ -529,7 +544,7 @@ export default function HomePage() {
         .insert({
           conversation_id: selectedConversation.id,
           role: 'user',
-          content: `Final post content saved with status: ${postStatus}`,
+          content: finalContent.trim(), // Store the actual content, not a status message
           agent_name: 'Final Editor',
           metadata: {
             final_content: finalContent.trim(),
