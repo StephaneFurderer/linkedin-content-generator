@@ -2,6 +2,33 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+
+// Define proper interfaces for our data structures
+interface Conversation {
+  id: string
+  title: string
+  status: string
+  created_at: string
+  updated_at: string
+  state?: Record<string, unknown> | null
+}
+
+interface Message {
+  id: string
+  role: string
+  content: string
+  agent_name?: string
+  created_at: string
+}
+
+interface Template {
+  id: string
+  title: string
+  content: string
+  author?: string
+  category: string
+  format: string
+}
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -35,14 +62,6 @@ const FORMATS = {
   ]
 }
 
-interface Conversation {
-  id: string
-  title: string
-  status: string
-  created_at: string
-  updated_at: string
-  state: Record<string, unknown> | null
-}
 
 export default function HomePage() {
   const [panel1Mode, setPanel1Mode] = useState<PanelMode>('default')
@@ -71,7 +90,7 @@ export default function HomePage() {
   
   // Panel 2: Chat state
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [messages, setMessages] = useState<Record<string, unknown>[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [selectedFormat, setSelectedFormat] = useState('')
   const [isFormatting, setIsFormatting] = useState(false)
@@ -84,8 +103,8 @@ export default function HomePage() {
   const [panel2ActiveTab, setPanel2ActiveTab] = useState<'content' | 'templates'>('content')
   
   // Template browsing state
-  const [templates, setTemplates] = useState<Record<string, unknown>[]>([])
-  const [filteredTemplates, setFilteredTemplates] = useState<Record<string, unknown>[]>([])
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([])
   const [currentTemplateIndex, setCurrentTemplateIndex] = useState(0)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [templateFilters, setTemplateFilters] = useState({
@@ -104,13 +123,25 @@ export default function HomePage() {
     fetchConversations()
   }, [])
 
+  // Filter templates based on current filters
+  const applyFilters = useCallback(() => {
+    const filtered = templates.filter(template => {
+      if (templateFilters.category && template.category !== templateFilters.category) return false
+      if (templateFilters.format && template.format !== templateFilters.format) return false
+      if (templateFilters.author && !template.author?.toLowerCase().includes(templateFilters.author.toLowerCase())) return false
+      return true
+    })
+    setFilteredTemplates(filtered)
+    setCurrentTemplateIndex(0) // Reset to first template when filters change
+  }, [templates, templateFilters])
+
   // Apply filters when they change
   useEffect(() => {
     applyFilters()
   }, [applyFilters])
 
   // Helper function for status badges
-  const getStatusBadge = (status: string, state: Record<string, unknown> | null) => {
+  const getStatusBadge = (status: string, state?: Record<string, unknown> | null) => {
     if (status === 'archived') {
       return <Badge variant="outline" className="border-gray-500 text-gray-500">📦</Badge>
     }
@@ -284,7 +315,7 @@ export default function HomePage() {
   }
 
   // Load the latest formatted content for Panel 3
-  const loadLatestFormattedContent = (messages: Record<string, unknown>[]) => {
+  const loadLatestFormattedContent = (messages: Message[]) => {
     // Find the latest Format Agent message (most recent formatted content)
     const formatAgentMessages = messages.filter(msg => msg.agent_name === 'Format Agent')
     if (formatAgentMessages.length > 0) {
@@ -527,18 +558,6 @@ export default function HomePage() {
       setIsLoadingTemplates(false)
     }
   }, [])
-
-  // Filter templates based on current filters
-  const applyFilters = useCallback(() => {
-    const filtered = templates.filter(template => {
-      if (templateFilters.category && template.category !== templateFilters.category) return false
-      if (templateFilters.format && template.format !== templateFilters.format) return false
-      if (templateFilters.author && !template.author?.toLowerCase().includes(templateFilters.author.toLowerCase())) return false
-      return true
-    })
-    setFilteredTemplates(filtered)
-    setCurrentTemplateIndex(0) // Reset to first template when filters change
-  }, [templates, templateFilters])
 
   // Navigate to previous template
   const goToPreviousTemplate = () => {
@@ -991,8 +1010,8 @@ export default function HomePage() {
                   {(() => {
                     // Check for URL in conversation state or messages
                     const state = selectedConversation.state || {}
-                    const readwiseUrl = state.readwise_url
-                    const sourceUrl = state.source_url
+                    const readwiseUrl = state.readwise_url as string | undefined
+                    const sourceUrl = state.source_url as string | undefined
                     const url = readwiseUrl || sourceUrl
                     
                     // If no URL in state, check the first user message for a URL
@@ -1264,7 +1283,7 @@ export default function HomePage() {
                       <SelectContent>
                         <SelectItem value="all">All Authors</SelectItem>
                         {Array.from(new Set(templates.map(t => t.author).filter(Boolean))).map((author) => (
-                          <SelectItem key={author} value={author}>
+                          <SelectItem key={author} value={author as string}>
                             {author}
                           </SelectItem>
                         ))}
