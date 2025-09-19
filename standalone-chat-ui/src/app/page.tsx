@@ -332,9 +332,9 @@ export default function HomePage() {
     return messages.filter(msg => 
       msg.agent_name === 'Format Agent' && 
       msg.metadata?.feedback && 
-      msg.metadata.feedback.trim() !== ''
+      (msg.metadata.feedback as string).trim() !== ''
     ).map(msg => ({
-      content: msg.metadata.feedback as string,
+      content: msg.metadata?.feedback as string,
       timestamp: msg.created_at,
       id: msg.id
     }))
