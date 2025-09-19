@@ -18,6 +18,7 @@ interface Message {
   role: string
   content: string
   agent_name?: string
+  metadata?: Record<string, unknown>
   created_at: string
 }
 
