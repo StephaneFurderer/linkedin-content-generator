@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -84,8 +84,8 @@ export default function HomePage() {
   const [panel2ActiveTab, setPanel2ActiveTab] = useState<'content' | 'templates'>('content')
   
   // Template browsing state
-  const [templates, setTemplates] = useState<any[]>([])
-  const [filteredTemplates, setFilteredTemplates] = useState<any[]>([])
+  const [templates, setTemplates] = useState<Record<string, unknown>[]>([])
+  const [filteredTemplates, setFilteredTemplates] = useState<Record<string, unknown>[]>([])
   const [currentTemplateIndex, setCurrentTemplateIndex] = useState(0)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [templateFilters, setTemplateFilters] = useState({
@@ -107,7 +107,7 @@ export default function HomePage() {
   // Apply filters when they change
   useEffect(() => {
     applyFilters()
-  }, [templateFilters, templates])
+  }, [applyFilters])
 
   // Helper function for status badges
   const getStatusBadge = (status: string, state: Record<string, unknown> | null) => {
@@ -177,7 +177,6 @@ export default function HomePage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
         throw new Error(`Failed to create post: ${response.status} ${response.statusText}`)
       }
 
@@ -226,7 +225,6 @@ export default function HomePage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
         throw new Error(`Failed to create template: ${response.status} ${response.statusText}`)
       }
 
@@ -286,7 +284,7 @@ export default function HomePage() {
   }
 
   // Load the latest formatted content for Panel 3
-  const loadLatestFormattedContent = (messages: any[]) => {
+  const loadLatestFormattedContent = (messages: Record<string, unknown>[]) => {
     // Find the latest Format Agent message (most recent formatted content)
     const formatAgentMessages = messages.filter(msg => msg.agent_name === 'Format Agent')
     if (formatAgentMessages.length > 0) {
@@ -317,7 +315,7 @@ export default function HomePage() {
         return
       }
 
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         conversation_id: selectedConversation.id,
         draft: writerMessage.content,
         category: selectedConversation.state?.category,
@@ -499,7 +497,7 @@ export default function HomePage() {
   }
 
   // Helper function to fetch templates
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     setIsLoadingTemplates(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -528,10 +526,10 @@ export default function HomePage() {
     } finally {
       setIsLoadingTemplates(false)
     }
-  }
+  }, [])
 
   // Filter templates based on current filters
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     const filtered = templates.filter(template => {
       if (templateFilters.category && template.category !== templateFilters.category) return false
       if (templateFilters.format && template.format !== templateFilters.format) return false
@@ -540,7 +538,7 @@ export default function HomePage() {
     })
     setFilteredTemplates(filtered)
     setCurrentTemplateIndex(0) // Reset to first template when filters change
-  }
+  }, [templates, templateFilters])
 
   // Navigate to previous template
   const goToPreviousTemplate = () => {
