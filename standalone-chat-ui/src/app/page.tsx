@@ -98,6 +98,7 @@ export default function HomePage() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
   const [showFeedbackTab, setShowFeedbackTab] = useState(false)
   const [showTemplateTab, setShowTemplateTab] = useState(false)
+  const [showFeedbackHistory, setShowFeedbackHistory] = useState(false)
   
   // Panel 2 tabs state
   const [panel2ActiveTab, setPanel2ActiveTab] = useState<'content' | 'templates'>('content')
@@ -323,6 +324,19 @@ export default function HomePage() {
     } finally {
       setIsLoadingMessages(false)
     }
+  }
+
+  // Get feedback messages from the conversation
+  const getFeedbackMessages = (messages: Message[]) => {
+    return messages.filter(msg => 
+      msg.agent_name === 'Format Agent' && 
+      msg.metadata?.feedback && 
+      msg.metadata.feedback.trim() !== ''
+    ).map(msg => ({
+      content: msg.metadata.feedback as string,
+      timestamp: msg.created_at,
+      id: msg.id
+    }))
   }
 
   // Load the latest formatted content for Panel 3
@@ -1339,6 +1353,43 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+
+              {/* Feedback History Section */}
+              {getFeedbackMessages(messages).length > 0 && (
+                <div className="border-t border-border/50">
+                  <div 
+                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => setShowFeedbackHistory(!showFeedbackHistory)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">💬 Your Feedback History</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {getFeedbackMessages(messages).length}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {showFeedbackHistory ? '▼' : '▶'}
+                    </span>
+                  </div>
+                  
+                  {showFeedbackHistory && (
+                    <div className="px-3 pb-3 space-y-2 max-h-40 overflow-y-auto">
+                      {getFeedbackMessages(messages).reverse().map((feedback, index) => (
+                        <div key={feedback.id} className="bg-muted/20 rounded-lg p-3 border border-border/30">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                            <span>Feedback #{getFeedbackMessages(messages).length - index}</span>
+                            <span>•</span>
+                            <span>{new Date(feedback.timestamp).toLocaleString()}</span>
+                          </div>
+                          <div className="text-sm whitespace-pre-wrap bg-background/50 p-2 rounded border border-border/20">
+                            {feedback.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Tab Bar at Bottom */}
               {messages.some(msg => msg.agent_name === 'Writer') && (
