@@ -117,6 +117,11 @@ export default function HomePage() {
   const [finalContent, setFinalContent] = useState('')
   const [postStatus, setPostStatus] = useState('')
   const [isSavingPost, setIsSavingPost] = useState(false)
+  
+  // Post editing state
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editingPostTitle, setEditingPostTitle] = useState('')
+  const [isUpdatingPost, setIsUpdatingPost] = useState(false)
 
   // Fetch conversations on component mount
   useEffect(() => {
@@ -625,6 +630,61 @@ export default function HomePage() {
     )
   }
 
+  // Start editing a post title
+  const startEditingPost = (post: Conversation) => {
+    setEditingPostId(post.id)
+    setEditingPostTitle(post.title)
+  }
+
+  // Cancel editing
+  const cancelEditingPost = () => {
+    setEditingPostId(null)
+    setEditingPostTitle('')
+  }
+
+  // Save post title changes
+  const savePostTitle = async () => {
+    if (!editingPostId || !editingPostTitle.trim()) return
+
+    setIsUpdatingPost(true)
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ title: editingPostTitle.trim() })
+        .eq('id', editingPostId)
+
+      if (error) {
+        console.error('Error updating post title:', error)
+        alert(`Error updating post title: ${error.message}`)
+        return
+      }
+
+      // Update the conversations list
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === editingPostId 
+            ? { ...conv, title: editingPostTitle.trim() }
+            : conv
+        )
+      )
+
+      // Update selected conversation if it's the one being edited
+      if (selectedConversation?.id === editingPostId) {
+        setSelectedConversation(prev => 
+          prev ? { ...prev, title: editingPostTitle.trim() } : null
+        )
+      }
+
+      setEditingPostId(null)
+      setEditingPostTitle('')
+    } catch (err) {
+      console.error('Error updating post title:', err)
+      alert(`Error updating post title: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setIsUpdatingPost(false)
+    }
+  }
+
   // Helper function to fetch conversations (extracted for reuse)
   const fetchConversations = async () => {
     try {
@@ -704,7 +764,7 @@ export default function HomePage() {
               >
                 Cancel
               </Button>
-            </div>
+          </div>
             
             <div className="flex-1 overflow-y-auto p-4">
               <Card>
@@ -719,7 +779,7 @@ export default function HomePage() {
                       placeholder={isAddingPost ? 'Enter post title...' : 'Enter template title...'}
                       disabled={isCreatingPost || isCreatingTemplate}
                     />
-                  </div>
+        </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-card-foreground mb-2">
@@ -732,7 +792,7 @@ export default function HomePage() {
                       placeholder={isAddingPost ? 'Write your post content here...' : 'Write your template content here...'}
                       disabled={isCreatingPost || isCreatingTemplate}
                     />
-                  </div>
+      </div>
                   
                   {isAddingPost && (
                     <div>
@@ -967,15 +1027,61 @@ export default function HomePage() {
                       className={`p-3 hover:bg-accent cursor-pointer transition-colors ${
                         selectedConversation?.id === conversation.id ? 'bg-accent border-l-2 border-primary' : ''
                       }`}
-                      onClick={() => handleConversationSelect(conversation)}
                     >
                       <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-sm font-medium text-card-foreground truncate flex-1">
-                          {conversation.title}
-                        </h3>
+                        <div className="flex-1 min-w-0">
+                          {editingPostId === conversation.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingPostTitle}
+                                onChange={(e) => setEditingPostTitle(e.target.value)}
+                                className="h-7 text-sm"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    savePostTitle()
+                                  } else if (e.key === 'Escape') {
+                                    cancelEditingPost()
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                onClick={savePostTitle}
+                                size="sm"
+                                className="h-7 px-2"
+                                disabled={isUpdatingPost}
+                              >
+                                ✓
+                              </Button>
+                              <Button
+                                onClick={cancelEditingPost}
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2"
+                                disabled={isUpdatingPost}
+                              >
+                                ✕
+                              </Button>
+                            </div>
+                          ) : (
+                            <h3 
+                              className="text-sm font-medium text-card-foreground truncate hover:text-primary cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                startEditingPost(conversation)
+                              }}
+                              title="Click to rename"
+                            >
+                              {conversation.title}
+                            </h3>
+                          )}
+                        </div>
                         {getStatusBadge(conversation.status, conversation.state)}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div 
+                        className="text-xs text-muted-foreground cursor-pointer"
+                        onClick={() => handleConversationSelect(conversation)}
+                      >
                         {new Date(conversation.updated_at).toLocaleDateString()}
                       </div>
                     </div>
@@ -1052,9 +1158,48 @@ export default function HomePage() {
               <div className="p-4 bg-card border-b border-border">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-card-foreground truncate">
-                      {selectedConversation.title}
-                    </h3>
+                    {editingPostId === selectedConversation.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editingPostTitle}
+                          onChange={(e) => setEditingPostTitle(e.target.value)}
+                          className="h-7 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              savePostTitle()
+                            } else if (e.key === 'Escape') {
+                              cancelEditingPost()
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          onClick={savePostTitle}
+                          size="sm"
+                          className="h-7 px-2"
+                          disabled={isUpdatingPost}
+                        >
+                          ✓
+                        </Button>
+                        <Button
+                          onClick={cancelEditingPost}
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2"
+                          disabled={isUpdatingPost}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <h3 
+                        className="text-sm font-medium text-card-foreground truncate hover:text-primary cursor-pointer"
+                        onClick={() => startEditingPost(selectedConversation)}
+                        title="Click to rename"
+                      >
+                        {selectedConversation.title}
+                      </h3>
+                    )}
                     <div className="text-xs text-muted-foreground mt-1">
                       {new Date(selectedConversation.updated_at).toLocaleDateString()}
                     </div>
