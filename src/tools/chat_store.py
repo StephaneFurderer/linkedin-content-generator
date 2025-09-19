@@ -682,6 +682,7 @@ class Coordinator:
                 "template_id": (chosen_template or {}).get("id") if chosen_template else None,
                 "template_category": (chosen_template or {}).get("category") if chosen_template else None,
                 "template_format": (chosen_template or {}).get("format") if chosen_template else None,
+                "feedback": feedback,  # Store the user's feedback
             },
         )
 
