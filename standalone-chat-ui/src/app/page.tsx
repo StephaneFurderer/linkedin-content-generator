@@ -208,16 +208,24 @@ export default function HomePage() {
     setIsCreatingPost(true)
     try {
       // Use the backend API to create a conversation instead of direct Supabase insert
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/coordinator/start`, {
+      const requestBody = {
+        user_request: newPostContent.trim(),
+        conversation_title: newPostTitle.trim(),
+        category: 'manual_post'
+      }
+      
+      console.log('Creating post with request body:', requestBody)
+      console.log('API URL:', process.env.NEXT_PUBLIC_API_URL)
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      console.log('Using API URL:', apiUrl)
+      
+      const response = await fetch(`${apiUrl}/coordinator/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_request: newPostContent.trim(),
-          conversation_title: newPostTitle.trim(),
-          category: 'manual_post'
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
@@ -236,7 +244,13 @@ export default function HomePage() {
       alert('Post created successfully!')
     } catch (err) {
       console.error('Error creating post:', err)
-      alert(`Failed to create post: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      
+      // Handle different types of errors
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        alert('Network error: Could not connect to the server. Please check your internet connection and try again.')
+      } else {
+        alert(`Failed to create post: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      }
     } finally {
       setIsCreatingPost(false)
     }
