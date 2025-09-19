@@ -313,7 +313,7 @@ export default function HomePage() {
       setMessages(data || [])
       
       // Load the latest formatted content into Panel 3
-      loadLatestFormattedContent(data || [])
+      loadLatestFormattedContent(data || [], conversation)
       
       // Set the current post status
       setPostStatus(conversation.status || 'draft')
@@ -326,22 +326,41 @@ export default function HomePage() {
   }
 
   // Load the latest formatted content for Panel 3
-  const loadLatestFormattedContent = (messages: Message[]) => {
-    // Find the latest Format Agent message (most recent formatted content)
+  const loadLatestFormattedContent = (messages: Message[], conversation: Conversation) => {
+    // Priority order: Final Editor > Format Agent > Writer
+    
+    // 1. Check for Final Editor message (user's saved version) - highest priority
+    const finalEditorMessages = messages.filter(msg => msg.agent_name === 'Final Editor')
+    if (finalEditorMessages.length > 0) {
+      const latestFinalEditorMessage = finalEditorMessages[finalEditorMessages.length - 1]
+      setFinalContent(latestFinalEditorMessage.content || '')
+      return
+    }
+    
+    // 2. Check for saved content in conversation state - second priority
+    if (conversation.state?.final_content) {
+      setFinalContent(conversation.state.final_content as string)
+      return
+    }
+    
+    // 3. Check for Format Agent message (AI formatted content) - third priority
     const formatAgentMessages = messages.filter(msg => msg.agent_name === 'Format Agent')
     if (formatAgentMessages.length > 0) {
       const latestFormatMessage = formatAgentMessages[formatAgentMessages.length - 1]
       setFinalContent(latestFormatMessage.content || '')
-    } else {
-      // Fallback to latest Writer message if no Format Agent content
-      const writerMessages = messages.filter(msg => msg.agent_name === 'Writer')
-      if (writerMessages.length > 0) {
-        const latestWriterMessage = writerMessages[writerMessages.length - 1]
-        setFinalContent(latestWriterMessage.content || '')
-      } else {
-        setFinalContent('')
-      }
+      return
     }
+
+    // 4. Fallback to Writer message (initial draft) - lowest priority
+    const writerMessages = messages.filter(msg => msg.agent_name === 'Writer')
+    if (writerMessages.length > 0) {
+      const latestWriterMessage = writerMessages[writerMessages.length - 1]
+      setFinalContent(latestWriterMessage.content || '')
+      return
+    }
+    
+    // 5. No content found
+    setFinalContent('')
   }
 
   // Handle template formatting for Panel 2
@@ -1648,7 +1667,7 @@ export default function HomePage() {
                         {isSavingPost ? 'Saving...' : 'Save'}
                       </Button>
                       <Button
-                        onClick={() => loadLatestFormattedContent(messages)}
+                        onClick={() => selectedConversation && loadLatestFormattedContent(messages, selectedConversation)}
                         disabled={isSavingPost}
                         variant="outline"
                         size="sm"
