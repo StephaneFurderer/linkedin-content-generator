@@ -11,6 +11,30 @@ import { Badge } from '@/components/ui/badge'
 
 type PanelMode = 'closed' | 'default' | 'expanded'
 
+const CATEGORIES = [
+  { value: 'attract', label: 'Attract', description: 'Build awareness and trust' },
+  { value: 'nurture', label: 'Nurture', description: 'Show authority/create demand' },
+  { value: 'convert', label: 'Convert', description: 'Qualify and filter buyers' }
+]
+
+const FORMATS = {
+  attract: [
+    { value: 'belief_shift', label: 'Belief Shift' },
+    { value: 'origin_story', label: 'Origin Story' },
+    { value: 'industry_myths', label: 'Industry Myths' }
+  ],
+  nurture: [
+    { value: 'framework', label: 'Framework' },
+    { value: 'step_by_step', label: 'Step-by-step' },
+    { value: 'how_i_how_to', label: 'How I / How to' }
+  ],
+  convert: [
+    { value: 'objection_post', label: 'Objection Post' },
+    { value: 'result_breakdown', label: 'Result Breakdown' },
+    { value: 'client_success_story', label: 'Client Success Story' }
+  ]
+}
+
 interface Conversation {
   id: string
   title: string
@@ -30,10 +54,20 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddingPost, setIsAddingPost] = useState(false)
+  const [isAddingTemplate, setIsAddingTemplate] = useState(false)
   const [newPostTitle, setNewPostTitle] = useState('')
   const [newPostContent, setNewPostContent] = useState('')
   const [newPostTags, setNewPostTags] = useState('')
   const [isCreatingPost, setIsCreatingPost] = useState(false)
+  const [newTemplateTitle, setNewTemplateTitle] = useState('')
+  const [newTemplateContent, setNewTemplateContent] = useState('')
+  const [newTemplateAuthor, setNewTemplateAuthor] = useState('')
+  const [newTemplateLinkedinUrl, setNewTemplateLinkedinUrl] = useState('')
+  const [newTemplateCategory, setNewTemplateCategory] = useState('attract')
+  const [newTemplateFormat, setNewTemplateFormat] = useState('belief_shift')
+  const [newTemplateTags, setNewTemplateTags] = useState('')
+  const [newTemplateScreenshotUrl, setNewTemplateScreenshotUrl] = useState('')
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
   
   // Panel 2: Chat state
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -46,6 +80,20 @@ export default function HomePage() {
   const [showFeedbackTab, setShowFeedbackTab] = useState(false)
   const [showTemplateTab, setShowTemplateTab] = useState(false)
   
+  // Panel 2 tabs state
+  const [panel2ActiveTab, setPanel2ActiveTab] = useState<'content' | 'templates'>('content')
+  
+  // Template browsing state
+  const [templates, setTemplates] = useState<any[]>([])
+  const [filteredTemplates, setFilteredTemplates] = useState<any[]>([])
+  const [currentTemplateIndex, setCurrentTemplateIndex] = useState(0)
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
+  const [templateFilters, setTemplateFilters] = useState({
+    category: '',
+    format: '',
+    author: ''
+  })
+  
   // Panel 3: Writing state
   const [finalContent, setFinalContent] = useState('')
   const [postStatus, setPostStatus] = useState('')
@@ -55,6 +103,11 @@ export default function HomePage() {
   useEffect(() => {
     fetchConversations()
   }, [])
+
+  // Apply filters when they change
+  useEffect(() => {
+    applyFilters()
+  }, [templateFilters, templates])
 
   // Helper function for status badges
   const getStatusBadge = (status: string, state: Record<string, unknown> | null) => {
@@ -85,11 +138,21 @@ export default function HomePage() {
 
   const handleCancelAddPost = () => {
     setIsAddingPost(false)
+    setIsAddingTemplate(false)
     setPanel1Mode('default')
-    // Reset form fields
+    // Reset post form fields
     setNewPostTitle('')
     setNewPostContent('')
     setNewPostTags('')
+    // Reset template form fields
+    setNewTemplateTitle('')
+    setNewTemplateContent('')
+    setNewTemplateAuthor('')
+    setNewTemplateLinkedinUrl('')
+    setNewTemplateCategory('attract')
+    setNewTemplateFormat('belief_shift')
+    setNewTemplateTags('')
+    setNewTemplateScreenshotUrl('')
   }
 
   const handleCreatePost = async () => {
@@ -133,6 +196,61 @@ export default function HomePage() {
       alert(`Failed to create post: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setIsCreatingPost(false)
+    }
+  }
+
+  const handleCreateTemplate = async () => {
+    if (!newTemplateTitle.trim() || !newTemplateContent.trim()) {
+      alert('Please fill in both title and content')
+      return
+    }
+
+    setIsCreatingTemplate(true)
+    try {
+      // Use the backend API to create a template
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newTemplateTitle.trim(),
+          content: newTemplateContent.trim(),
+          category: newTemplateCategory,
+          format: newTemplateFormat,
+          author: newTemplateAuthor.trim() || null,
+          linkedin_url: newTemplateLinkedinUrl.trim() || null,
+          tags: newTemplateTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+          screenshot_url: newTemplateScreenshotUrl.trim() || null
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`Failed to create template: ${response.status} ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('Template created successfully:', result)
+
+      // Reset form and return to default mode
+      setNewTemplateTitle('')
+      setNewTemplateContent('')
+      setNewTemplateAuthor('')
+      setNewTemplateLinkedinUrl('')
+      setNewTemplateCategory('attract')
+      setNewTemplateFormat('belief_shift')
+      setNewTemplateTags('')
+      setNewTemplateScreenshotUrl('')
+      setIsAddingTemplate(false)
+      setPanel1Mode('default')
+      
+      alert('Template created successfully!')
+    } catch (err) {
+      console.error('Error creating template:', err)
+      alert(`Failed to create template: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setIsCreatingTemplate(false)
     }
   }
 
@@ -380,6 +498,64 @@ export default function HomePage() {
     }
   }
 
+  // Helper function to fetch templates
+  const fetchTemplates = async () => {
+    setIsLoadingTemplates(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      console.log('Fetching templates from:', `${apiUrl}/templates`)
+      
+      const response = await fetch(`${apiUrl}/templates`)
+      console.log('Templates response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Templates response error:', errorText)
+        throw new Error(`Failed to fetch templates: ${response.status} ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      console.log('Templates data:', data)
+      const templatesList = data.templates || []
+      setTemplates(templatesList)
+      setFilteredTemplates(templatesList)
+      setCurrentTemplateIndex(0)
+    } catch (err) {
+      console.error('Error fetching templates:', err)
+      setTemplates([])
+      setFilteredTemplates([])
+      setCurrentTemplateIndex(0)
+    } finally {
+      setIsLoadingTemplates(false)
+    }
+  }
+
+  // Filter templates based on current filters
+  const applyFilters = () => {
+    const filtered = templates.filter(template => {
+      if (templateFilters.category && template.category !== templateFilters.category) return false
+      if (templateFilters.format && template.format !== templateFilters.format) return false
+      if (templateFilters.author && !template.author?.toLowerCase().includes(templateFilters.author.toLowerCase())) return false
+      return true
+    })
+    setFilteredTemplates(filtered)
+    setCurrentTemplateIndex(0) // Reset to first template when filters change
+  }
+
+  // Navigate to previous template
+  const goToPreviousTemplate = () => {
+    setCurrentTemplateIndex(prev => 
+      prev > 0 ? prev - 1 : filteredTemplates.length - 1
+    )
+  }
+
+  // Navigate to next template
+  const goToNextTemplate = () => {
+    setCurrentTemplateIndex(prev => 
+      prev < filteredTemplates.length - 1 ? prev + 1 : 0
+    )
+  }
+
   // Helper function to fetch conversations (extracted for reuse)
   const fetchConversations = async () => {
     try {
@@ -441,13 +617,19 @@ export default function HomePage() {
         className="border-r border-border bg-card transition-all duration-300 flex flex-col"
         style={{ width: `${panelWidths.panel1}%` }}
       >
-        {isAddingPost ? (
-          // Add Post Mode - Expanded form
+        {(isAddingPost || isAddingTemplate) ? (
+          // Add Mode - Expanded form
           <>
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-card-foreground">Create New Post</h2>
+              <h2 className="text-lg font-semibold text-card-foreground">
+                {isAddingPost ? 'Create New Post' : 'Create New Template'}
+              </h2>
               <Button 
-                onClick={handleCancelAddPost}
+                onClick={() => {
+                  setIsAddingPost(false)
+                  setIsAddingTemplate(false)
+                  setPanel1Mode('default')
+                }}
                 variant="outline"
                 size="sm"
               >
@@ -460,12 +642,13 @@ export default function HomePage() {
                 <CardContent className="p-4 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-card-foreground mb-2">
-                      Post Title
+                      {isAddingPost ? 'Post Title' : 'Template Title'}
                     </label>
                     <Input
-                      value={newPostTitle}
-                      onChange={(e) => setNewPostTitle(e.target.value)}
-                      placeholder="Enter post title..."
+                      value={isAddingPost ? newPostTitle : newTemplateTitle}
+                      onChange={(e) => isAddingPost ? setNewPostTitle(e.target.value) : setNewTemplateTitle(e.target.value)}
+                      placeholder={isAddingPost ? 'Enter post title...' : 'Enter template title...'}
+                      disabled={isCreatingPost || isCreatingTemplate}
                     />
                   </div>
                   
@@ -475,34 +658,151 @@ export default function HomePage() {
                     </label>
                     <Textarea
                       rows={8}
-                      value={newPostContent}
-                      onChange={(e) => setNewPostContent(e.target.value)}
-                      placeholder="Write your post content here..."
+                      value={isAddingPost ? newPostContent : newTemplateContent}
+                      onChange={(e) => isAddingPost ? setNewPostContent(e.target.value) : setNewTemplateContent(e.target.value)}
+                      placeholder={isAddingPost ? 'Write your post content here...' : 'Write your template content here...'}
+                      disabled={isCreatingPost || isCreatingTemplate}
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-card-foreground mb-2">
-                      Tags (optional)
-                    </label>
-                    <Input
-                      value={newPostTags}
-                      onChange={(e) => setNewPostTags(e.target.value)}
-                      placeholder="e.g., linkedin, networking, ai (comma separated)"
-                    />
-                  </div>
+                  {isAddingPost && (
+                    <div>
+                      <label className="block text-sm font-medium text-card-foreground mb-2">
+                        Tags (optional)
+                      </label>
+                      <Input
+                        value={newPostTags}
+                        onChange={(e) => setNewPostTags(e.target.value)}
+                        placeholder="e.g., linkedin, networking, ai (comma separated)"
+                        disabled={isCreatingPost}
+                      />
+                    </div>
+                  )}
+
+                  {isAddingTemplate && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-card-foreground mb-2">
+                            Author
+                          </label>
+                          <Input
+                            value={newTemplateAuthor}
+                            onChange={(e) => setNewTemplateAuthor(e.target.value)}
+                            placeholder="Author name"
+                            disabled={isCreatingTemplate}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-card-foreground mb-2">
+                            LinkedIn URL
+                          </label>
+                          <Input
+                            value={newTemplateLinkedinUrl}
+                            onChange={(e) => setNewTemplateLinkedinUrl(e.target.value)}
+                            placeholder="https://linkedin.com/in/..."
+                            disabled={isCreatingTemplate}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-card-foreground mb-2">
+                            Category
+                          </label>
+                          <Select
+                            value={newTemplateCategory}
+                            onValueChange={(value) => {
+                              setNewTemplateCategory(value)
+                              // Reset format when category changes
+                              const categoryFormats = FORMATS[value as keyof typeof FORMATS]
+                              if (categoryFormats && categoryFormats.length > 0) {
+                                setNewTemplateFormat(categoryFormats[0].value)
+                              }
+                            }}
+                            disabled={isCreatingTemplate}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIES.map((category) => (
+                                <SelectItem key={category.value} value={category.value}>
+                                  {category.label} - {category.description}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-card-foreground mb-2">
+                            Format
+                          </label>
+                          <Select
+                            value={newTemplateFormat}
+                            onValueChange={setNewTemplateFormat}
+                            disabled={isCreatingTemplate}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FORMATS[newTemplateCategory as keyof typeof FORMATS]?.map((format) => (
+                                <SelectItem key={format.value} value={format.value}>
+                                  {format.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-card-foreground mb-2">
+                          Tags (comma-separated)
+                        </label>
+                        <Input
+                          value={newTemplateTags}
+                          onChange={(e) => setNewTemplateTags(e.target.value)}
+                          placeholder="e.g., linkedin, networking, ai"
+                          disabled={isCreatingTemplate}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-card-foreground mb-2">
+                          Screenshot URL (optional)
+                        </label>
+                        <Input
+                          value={newTemplateScreenshotUrl}
+                          onChange={(e) => setNewTemplateScreenshotUrl(e.target.value)}
+                          placeholder="https://example.com/screenshot.png"
+                          disabled={isCreatingTemplate}
+                        />
+                      </div>
+                    </>
+                  )}
                   
                   <div className="flex space-x-2">
                     <Button 
-                      onClick={handleCreatePost}
-                      disabled={isCreatingPost}
+                      onClick={isAddingPost ? handleCreatePost : handleCreateTemplate}
+                      disabled={
+                        (isAddingPost && isCreatingPost) || 
+                        (isAddingTemplate && isCreatingTemplate)
+                      }
                       className="flex-1"
                     >
-                      {isCreatingPost ? 'Creating...' : 'Create Post'}
+                      {isCreatingPost ? 'Creating...' : isCreatingTemplate ? 'Creating...' : 
+                       isAddingPost ? 'Create Post' : 'Create Template'}
                     </Button>
                     <Button 
-                      onClick={handleCancelAddPost}
-                      disabled={isCreatingPost}
+                      onClick={() => {
+                        setIsAddingPost(false)
+                        setIsAddingTemplate(false)
+                        setPanel1Mode('default')
+                      }}
+                      disabled={isCreatingPost || isCreatingTemplate}
                       variant="outline"
                     >
                       Cancel
@@ -515,15 +815,10 @@ export default function HomePage() {
         ) : (
           // Default Mode - Posts List
           <>
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-card-foreground">Posts</h2>
-              <div className="flex items-center gap-2">
-                <Button 
-                  onClick={handleAddPost}
-                  size="sm"
-                >
-                  + Add
-                </Button>
+            <div className="border-b border-border">
+              {/* Header with Panel Controls */}
+              <div className="p-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-card-foreground">Posts</h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPanel1Mode(panel1Mode === 'closed' ? 'default' : 'closed')}
@@ -540,6 +835,38 @@ export default function HomePage() {
                     ⤢
                   </button>
                 </div>
+              </div>
+              
+              {/* Tab System */}
+              <div className="flex">
+                <button
+                  onClick={() => {
+                    setIsAddingPost(true)
+                    setIsAddingTemplate(false)
+                    setPanel1Mode('expanded')
+                  }}
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                    isAddingPost 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  + Add Post
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAddingTemplate(true)
+                    setIsAddingPost(false)
+                    setPanel1Mode('expanded')
+                  }}
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                    isAddingTemplate 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  + Add Template
+                </button>
               </div>
             </div>
             
@@ -597,36 +924,129 @@ export default function HomePage() {
         className="border-r border-border bg-muted/30 transition-all duration-300 flex flex-col"
         style={{ width: `${panelWidths.panel2}%` }}
       >
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-card-foreground">Chat</h2>
-          <div className="flex items-center gap-2">
+        <div className="border-b border-border">
+          {/* Header with Panel Controls */}
+          <div className="p-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-card-foreground">Chat</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPanel2Mode(panel2Mode === 'closed' ? 'default' : 'closed')}
+                className="p-3 hover:bg-muted rounded transition-colors text-2xl font-bold"
+                title={panel2Mode === 'closed' ? 'Expand' : 'Collapse'}
+              >
+                {panel2Mode === 'closed' ? '□' : '⊡'}
+              </button>
+              <button
+                onClick={() => setPanel2Mode('expanded')}
+                className="p-3 hover:bg-muted rounded transition-colors text-2xl"
+                title="Maximize"
+              >
+                ⤢
+              </button>
+            </div>
+          </div>
+          
+          {/* Tab System */}
+          <div className="flex">
             <button
-              onClick={() => setPanel2Mode(panel2Mode === 'closed' ? 'default' : 'closed')}
-              className="p-3 hover:bg-muted rounded transition-colors text-2xl font-bold"
-              title={panel2Mode === 'closed' ? 'Expand' : 'Collapse'}
+              onClick={() => setPanel2ActiveTab('content')}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                panel2ActiveTab === 'content'
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+              }`}
             >
-              {panel2Mode === 'closed' ? '□' : '⊡'}
+              📝 View Content
             </button>
             <button
-              onClick={() => setPanel2Mode('expanded')}
-              className="p-3 hover:bg-muted rounded transition-colors text-2xl"
-              title="Maximize"
+              onClick={() => {
+                setPanel2ActiveTab('templates')
+                fetchTemplates()
+              }}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                panel2ActiveTab === 'templates'
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+              }`}
             >
-              ⤢
+              📚 Browse Templates
             </button>
           </div>
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          {selectedConversation ? (
-            <div className="h-full flex flex-col">
+          {panel2ActiveTab === 'content' ? (
+            // Content Tab - Show chat/conversation
+            selectedConversation ? (
+              <div className="h-full flex flex-col">
               {/* Conversation Header */}
               <div className="p-4 bg-card border-b border-border">
-                <h3 className="text-sm font-medium text-card-foreground truncate">
-                  {selectedConversation.title}
-                </h3>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {new Date(selectedConversation.updated_at).toLocaleDateString()}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-card-foreground truncate">
+                      {selectedConversation.title}
+                    </h3>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(selectedConversation.updated_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  {(() => {
+                    // Check for URL in conversation state or messages
+                    const state = selectedConversation.state || {}
+                    const readwiseUrl = state.readwise_url
+                    const sourceUrl = state.source_url
+                    const url = readwiseUrl || sourceUrl
+                    
+                    // If no URL in state, check the first user message for a URL
+                    if (!url && messages.length > 0) {
+                      const firstUserMessage = messages.find(m => m.role === 'user')
+                      if (firstUserMessage?.content) {
+                        const urlMatch = firstUserMessage.content.match(/https?:\/\/[^\s]+/)
+                        if (urlMatch) {
+                          return (
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="ml-3 h-7 text-xs flex-shrink-0"
+                            >
+                              <a 
+                                href={urlMatch[0]} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1"
+                              >
+                                🔗 Open Source
+                              </a>
+                            </Button>
+                          )
+                        }
+                      }
+                    }
+                    
+                    // Show button if URL exists in state
+                    if (url) {
+                      return (
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="ml-3 h-7 text-xs flex-shrink-0"
+                        >
+                          <a 
+                            href={url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1"
+                          >
+                            🔗 Open Source
+                          </a>
+                        </Button>
+                      )
+                    }
+                    
+                    return null
+                  })()}
                 </div>
               </div>
               
@@ -781,10 +1201,160 @@ export default function HomePage() {
                   )}
                 </div>
               )}
-            </div>
+              </div>
+            ) : (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                Select a conversation from the left to view chat details
+              </div>
+            )
           ) : (
-            <div className="p-4 text-center text-muted-foreground text-sm">
-              Select a conversation from the left to view chat details
+            // Templates Tab - Show template browser
+            <div className="h-full flex flex-col">
+              {/* Template Filters */}
+              <div className="p-4 border-b border-border">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    <Select
+                      value={templateFilters.category || "all"}
+                      onValueChange={(value) => setTemplateFilters(prev => ({ ...prev, category: value === "all" ? "" : value }))}
+                    >
+                      <SelectTrigger className="text-xs">
+                        <SelectValue placeholder="Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {CATEGORIES.map((category) => (
+                          <SelectItem key={category.value} value={category.value}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select
+                      value={templateFilters.format || "all"}
+                      onValueChange={(value) => setTemplateFilters(prev => ({ ...prev, format: value === "all" ? "" : value }))}
+                    >
+                      <SelectTrigger className="text-xs">
+                        <SelectValue placeholder="Format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Formats</SelectItem>
+                        {templateFilters.category ? (
+                          FORMATS[templateFilters.category as keyof typeof FORMATS]?.map((format) => (
+                            <SelectItem key={format.value} value={format.value}>
+                              {format.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          Object.values(FORMATS).flat().map((format) => (
+                            <SelectItem key={format.value} value={format.value}>
+                              {format.label}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select
+                      value={templateFilters.author || "all"}
+                      onValueChange={(value) => setTemplateFilters(prev => ({ ...prev, author: value === "all" ? "" : value }))}
+                    >
+                      <SelectTrigger className="text-xs">
+                        <SelectValue placeholder="Author" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Authors</SelectItem>
+                        {Array.from(new Set(templates.map(t => t.author).filter(Boolean))).map((author) => (
+                          <SelectItem key={author} value={author}>
+                            {author}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Template Viewer */}
+              <div className="flex-1 flex flex-col">
+                {isLoadingTemplates ? (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                    Loading templates...
+                  </div>
+                ) : filteredTemplates.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                    No templates found matching your filters
+                  </div>
+                ) : (
+                  <>
+                    {/* Template Counter */}
+                    <div className="p-3 text-center text-xs text-muted-foreground border-b border-border">
+                      Template {currentTemplateIndex + 1} of {filteredTemplates.length}
+                    </div>
+                    
+                    {/* Single Template View */}
+                    <div className="flex-1 flex items-center justify-between p-4">
+                      {/* Previous Arrow */}
+                      <Button
+                        onClick={goToPreviousTemplate}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        disabled={filteredTemplates.length <= 1}
+                      >
+                        ←
+                      </Button>
+                      
+                      {/* Template Content */}
+                      <div className="flex-1 mx-4">
+                        <Card className="max-w-2xl mx-auto">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-card-foreground mb-2">
+                                  {filteredTemplates[currentTemplateIndex]?.title}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {CATEGORIES.find(c => c.value === filteredTemplates[currentTemplateIndex]?.category)?.label || filteredTemplates[currentTemplateIndex]?.category}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {Object.values(FORMATS).flat().find(f => f.value === filteredTemplates[currentTemplateIndex]?.format)?.label || filteredTemplates[currentTemplateIndex]?.format}
+                                  </Badge>
+                                  {filteredTemplates[currentTemplateIndex]?.author && (
+                                    <span className="text-xs text-muted-foreground">
+                                      by {filteredTemplates[currentTemplateIndex].author}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="prose prose-sm max-w-none">
+                              <pre className="whitespace-pre-wrap text-sm text-card-foreground font-sans leading-relaxed">
+                                {filteredTemplates[currentTemplateIndex]?.content}
+                              </pre>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      {/* Next Arrow */}
+                      <Button
+                        onClick={goToNextTemplate}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        disabled={filteredTemplates.length <= 1}
+                      >
+                        →
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
