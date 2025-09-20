@@ -320,6 +320,44 @@ export default function HomePage() {
     }
   }
 
+  const analyzeTemplateContent = async () => {
+    if (!newTemplateTitle.trim() && !newTemplateContent.trim()) {
+      alert('Please enter a title or content to analyze')
+      return
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTemplateTitle,
+          content: newTemplateContent,
+          author: newTemplateAuthor
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to analyze template')
+      }
+
+      const result = await response.json()
+      const categorization = result.categorization
+      
+      // Auto-fill the form with AI suggestions
+      setNewTemplateCategory(categorization.category)
+      setNewTemplateFormat(categorization.format)
+      setNewTemplateTags(categorization.tags.join(', '))
+      
+      // Show success message with AI insights
+      alert(`🤖 AI Analysis Complete!\n\nCategory: ${categorization.category}\nFormat: ${categorization.format}\nTags: ${categorization.tags.join(', ')}\nConfidence: ${Math.round(categorization.confidence * 100)}%\n\nReasoning: ${categorization.reasoning}\n\nForm has been auto-filled with suggestions!`)
+      
+    } catch (err: unknown) {
+      alert(`Failed to analyze template: ${err instanceof Error ? err.message : 'An error occurred'}`)
+    }
+  }
+
   const handleCreateTemplate = async () => {
     if (!newTemplateTitle.trim() || !newTemplateContent.trim()) {
       alert('Please fill in both title and content')
@@ -927,12 +965,11 @@ export default function HomePage() {
               <div className="flex gap-2">
                 {isAddingTemplate && (
                   <Button 
-                    onClick={() => {
-                      alert('🤖 AI Categorize Button Clicked!\n\nThis will analyze your template content and suggest category, format, and tags.');
-                    }}
+                    onClick={analyzeTemplateContent}
+                    disabled={!newTemplateTitle.trim() && !newTemplateContent.trim()}
                     variant="secondary"
                     size="sm"
-                    className="bg-purple-600 text-white hover:bg-purple-700"
+                    className="bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
                   >
                     🤖 AI Categorize
                   </Button>
