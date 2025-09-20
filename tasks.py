@@ -8,8 +8,17 @@ from src.tools.chat_store import Coordinator
 # Initialize Celery app
 from celery_app import app
 
-# Initialize Coordinator for AI operations
-coordinator = Coordinator()
+# Initialize Coordinator for AI operations (will be created in each task)
+def get_coordinator():
+    """Get a properly initialized Coordinator instance"""
+    from src.tools.chat_store import ChatStore, Coordinator
+    from openai import OpenAI
+    
+    # Create ChatStore and OpenAI client
+    store = ChatStore()
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    return Coordinator(store=store, client=client)
 
 @app.task(bind=True, name='celery_app.create_post_task')
 def create_post_task(self, request_data):
@@ -31,7 +40,8 @@ def create_post_task(self, request_data):
         # Update task status
         self.update_state(state='PROCESSING', meta={'status': 'Creating post...'})
         
-        # Call existing AI logic
+        # Get coordinator instance and call existing AI logic
+        coordinator = get_coordinator()
         result = coordinator.start_conversation(
             conversation_id=conversation_id,
             user_request=user_request,
@@ -72,7 +82,8 @@ def format_with_feedback_task(self, request_data):
         # Update task status
         self.update_state(state='PROCESSING', meta={'status': 'Processing feedback...'})
         
-        # Call existing AI logic
+        # Get coordinator instance and call existing AI logic
+        coordinator = get_coordinator()
         result = coordinator._call_format_agent_with_feedback(
             conversation_id=conversation_id,
             draft=draft,
@@ -114,7 +125,8 @@ def format_with_template_task(self, request_data):
         # Update task status
         self.update_state(state='PROCESSING', meta={'status': 'Applying template...'})
         
-        # Call existing AI logic
+        # Get coordinator instance and call existing AI logic
+        coordinator = get_coordinator()
         result = coordinator._call_format_agent(
             conversation_id=conversation_id,
             draft=draft,
