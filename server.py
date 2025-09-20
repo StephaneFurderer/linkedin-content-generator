@@ -10,6 +10,7 @@ from openai import OpenAI
 import telebot
 import asyncio
 import threading
+import redis
 
 from src.tools.chat_store import ChatStore, Coordinator
 
@@ -165,6 +166,28 @@ async def delete_template(template_id: str):
         return {"message": "Template deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/test-redis")
+async def test_redis():
+    """Test Redis connection"""
+    try:
+        redis_url = os.getenv("REDIS_URL")
+        if not redis_url:
+            return {"error": "REDIS_URL not found in environment variables"}
+        
+        r = redis.from_url(redis_url)
+        # Test basic operations
+        r.set("test_key", "test_value", ex=10)  # Expire in 10 seconds
+        value = r.get("test_key")
+        
+        return {
+            "status": "success",
+            "redis_url": redis_url,
+            "test_value": value.decode() if value else None,
+            "message": "Redis connection successful"
+        }
+    except Exception as e:
+        return {"error": f"Redis connection failed: {str(e)}"}
 
 # Image upload endpoint
 @app.post("/upload-image")
