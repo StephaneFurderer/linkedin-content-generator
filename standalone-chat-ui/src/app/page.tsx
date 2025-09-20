@@ -1118,24 +1118,24 @@ export default function HomePage() {
               {/* Progress Bar for Active Jobs */}
               {activeJobs.length > 0 && (
                 <div className="px-4 pb-2">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="bg-muted/20 border border-border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-900">
+                      <span className="text-sm font-medium text-card-foreground">
                         🚀 Generating {activeJobs.length} post{activeJobs.length > 1 ? 's' : ''}...
                       </span>
-                      <span className="text-xs text-blue-700">
+                      <span className="text-xs text-muted-foreground">
                         {activeJobs.filter(job => job.status === 'PROCESSING').length} active
                       </span>
                     </div>
-                    <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2">
                       <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
                         style={{ 
                           width: `${activeJobs.length > 0 ? activeJobs.reduce((acc, job) => acc + job.progress, 0) / activeJobs.length : 0}%` 
                         }}
                       ></div>
                     </div>
-                    <div className="text-xs text-blue-700 mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {activeJobs.map(job => `${job.title} (${job.status})`).join(', ')}
                     </div>
                   </div>
@@ -1201,32 +1201,32 @@ export default function HomePage() {
                   {activeJobs.map((job) => (
                     <div 
                       key={job.jobId}
-                      className="p-3 bg-blue-50 border-l-4 border-blue-400"
+                      className="p-3 bg-muted/20 border-l-4 border-primary hover:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-blue-900 truncate">
+                          <h3 className="text-sm font-medium text-card-foreground truncate">
                             {job.title}
                           </h3>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="border-blue-500 text-blue-500">
+                          <Badge variant="outline" className="border-primary text-primary">
                             {job.status === 'PENDING' ? '⏳' : 
                              job.status === 'PROCESSING' ? '🔄' : 
                              job.status === 'SUCCESS' ? '✅' : '❌'}
                           </Badge>
                         </div>
                       </div>
-                      <div className="text-xs text-blue-700">
+                      <div className="text-xs text-muted-foreground">
                         {job.status === 'PENDING' && 'Queued for processing...'}
                         {job.status === 'PROCESSING' && 'AI is generating your content...'}
                         {job.status === 'SUCCESS' && 'Complete! Refreshing...'}
                         {job.status === 'FAILURE' && 'Failed to generate content'}
                       </div>
                       {job.status === 'PROCESSING' && (
-                        <div className="mt-2 w-full bg-blue-200 rounded-full h-1">
+                        <div className="mt-2 w-full bg-muted rounded-full h-1">
                           <div 
-                            className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                            className="bg-primary h-1 rounded-full transition-all duration-300"
                             style={{ width: `${job.progress}%` }}
                           ></div>
                         </div>
