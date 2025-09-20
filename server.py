@@ -13,6 +13,8 @@ import threading
 import redis
 
 from src.tools.chat_store import ChatStore, Coordinator
+from celery_app import app as celery_app
+from tasks import create_post_task, format_with_feedback_task, format_with_template_task
 
 
 load_dotenv()
@@ -203,6 +205,85 @@ async def test_redis():
             "redis_url": redis_url,
             "available_urls": all_redis_urls
         }
+
+# Background job endpoints
+@app.post("/jobs/create-post")
+async def create_post_job(request: FormatAgentRequest):
+    """Submit post creation as background job"""
+    try:
+        # Submit to Celery queue
+        task = create_post_task.delay({
+            'conversation_id': request.conversation_id,
+            'user_request': request.draft,
+            'title': request.conversation_id,  # You might want to pass a proper title
+            'category': 'manual_post'
+        })
+        
+        return {
+            "job_id": task.id,
+            "status": "queued",
+            "message": "Post creation job submitted successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit job: {str(e)}")
+
+@app.post("/jobs/format-with-feedback")
+async def format_with_feedback_job(request: FormatAgentRequest):
+    """Submit feedback formatting as background job"""
+    try:
+        # Submit to Celery queue
+        task = format_with_feedback_task.delay({
+            'conversation_id': request.conversation_id,
+            'draft': request.draft,
+            'feedback': request.feedback,
+            'format': request.format,
+            'category': request.category
+        })
+        
+        return {
+            "job_id": task.id,
+            "status": "queued",
+            "message": "Feedback formatting job submitted successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit job: {str(e)}")
+
+@app.post("/jobs/format-with-template")
+async def format_with_template_job(request: FormatAgentRequest):
+    """Submit template formatting as background job"""
+    try:
+        # Submit to Celery queue
+        task = format_with_template_task.delay({
+            'conversation_id': request.conversation_id,
+            'draft': request.draft,
+            'format': request.format,
+            'category': request.category,
+            'template_id': request.template_id
+        })
+        
+        return {
+            "job_id": task.id,
+            "status": "queued",
+            "message": "Template formatting job submitted successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit job: {str(e)}")
+
+@app.get("/jobs/{job_id}/status")
+async def get_job_status(job_id: str):
+    """Get the status of a background job"""
+    try:
+        # Check job status in Celery
+        task = celery_app.AsyncResult(job_id)
+        
+        return {
+            "job_id": job_id,
+            "status": task.status,
+            "result": task.result if task.ready() else None,
+            "info": task.info if hasattr(task, 'info') else None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get job status: {str(e)}")
 
 # Image upload endpoint
 @app.post("/upload-image")
