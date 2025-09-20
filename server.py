@@ -64,6 +64,12 @@ class FormatAgentRequest(BaseModel):
     format: Optional[str] = None
     feedback: Optional[str] = None
 
+class CreatePostJobRequest(BaseModel):
+    conversation_id: Optional[str] = None
+    draft: str
+    title: Optional[str] = None
+    category: Optional[str] = None
+
 class TemplateRequest(BaseModel):
     title: str
     content: str
@@ -208,19 +214,23 @@ async def test_redis():
 
 # Background job endpoints
 @app.post("/jobs/create-post")
-async def create_post_job(request: FormatAgentRequest):
+async def create_post_job(request: CreatePostJobRequest):
     """Submit post creation as background job"""
     try:
+        # Create a new conversation first
+        conv = store.create_conversation(title=request.title or "Background Job Post")
+        
         # Submit to Celery queue
         task = create_post_task.delay({
-            'conversation_id': request.conversation_id,
+            'conversation_id': conv['id'],
             'user_request': request.draft,
-            'title': request.conversation_id,  # You might want to pass a proper title
-            'category': 'manual_post'
+            'title': request.title or "Background Job Post",
+            'category': request.category or 'manual_post'
         })
         
         return {
             "job_id": task.id,
+            "conversation_id": conv['id'],
             "status": "queued",
             "message": "Post creation job submitted successfully"
         }

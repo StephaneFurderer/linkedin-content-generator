@@ -3,9 +3,16 @@ Celery configuration for background task processing
 """
 import os
 from celery import Celery
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Get Redis URL from environment (prioritize public URL)
 redis_url = os.getenv("REDIS_PUBLIC_URL") or os.getenv("REDIS_URL")
+
+# Debug: Print the Redis URL being used
+print(f"🔗 Using Redis URL: {redis_url}")
 
 # Create Celery app
 app = Celery('linkedin_content_generator')

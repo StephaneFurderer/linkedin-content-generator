@@ -42,10 +42,9 @@ def create_post_task(self, request_data):
         
         # Get coordinator instance and call existing AI logic
         coordinator = get_coordinator()
-        result = coordinator.start_conversation(
-            conversation_id=conversation_id,
+        result = coordinator.process_request(
             user_request=user_request,
-            title=title,
+            conversation_id=conversation_id,
             category=category
         )
         
