@@ -186,6 +186,7 @@ async def test_redis():
                 password = match.group(2)
                 public_url = f"redis://{username}:{password}@redis-production-89f6.up.railway.app:6379"
                 redis_url = public_url
+                print(f"Converted internal URL to public: {redis_url}")
         
         r = redis.from_url(redis_url)
         # Test basic operations
