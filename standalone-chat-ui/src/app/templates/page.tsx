@@ -264,9 +264,19 @@ export default function TemplatesPage() {
 
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <h2 className="text-2xl font-semibold mb-4">
-            {editingTemplate ? 'Edit Template' : 'Add New Template'}
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">
+              {editingTemplate ? 'Edit Template' : 'Add New Template'}
+            </h2>
+            <button
+              type="button"
+              onClick={() => analyzeTemplateContent()}
+              disabled={loading || (!formData.title.trim() && !formData.content.trim())}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              🤖 AI Categorize
+            </button>
+          </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -379,14 +389,6 @@ export default function TemplatesPage() {
             </div>
 
             <div className="flex gap-4 items-center">
-              <button
-                type="button"
-                onClick={() => analyzeTemplateContent()}
-                disabled={loading || (!formData.title.trim() && !formData.content.trim())}
-                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                🤖 AI Categorize
-              </button>
               <button
                 type="submit"
                 disabled={loading}
