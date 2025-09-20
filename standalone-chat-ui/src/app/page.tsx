@@ -191,7 +191,7 @@ export default function HomePage() {
     pollJobStatus()
     const interval = setInterval(pollJobStatus, 3000) // Poll every 3 seconds
     return () => clearInterval(interval)
-  }, [activeJobs, fetchConversations]) // Include all dependencies
+  }, [activeJobs]) // Only depend on activeJobs
 
   // Filter templates based on current filters
   const applyFilters = useCallback(() => {
