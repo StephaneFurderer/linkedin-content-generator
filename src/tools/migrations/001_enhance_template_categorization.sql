@@ -34,7 +34,35 @@ CREATE INDEX IF NOT EXISTS idx_content_templates_ai_tags_gin ON public.content_t
 CREATE INDEX IF NOT EXISTS idx_content_templates_custom_category ON public.content_templates (custom_category);
 CREATE INDEX IF NOT EXISTS idx_content_templates_custom_format ON public.content_templates (custom_format);
 
--- Step 5: Add comments for documentation
+-- Step 5: Add missing RLS policies for content_templates
+-- (The table has RLS enabled but was missing policies)
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "select content templates" ON public.content_templates;
+DROP POLICY IF EXISTS "insert content templates" ON public.content_templates;
+DROP POLICY IF EXISTS "update content templates" ON public.content_templates;
+DROP POLICY IF EXISTS "delete content templates" ON public.content_templates;
+
+-- Create new policies (allowing access when user_id is null or matches auth.uid())
+CREATE POLICY "select content templates" ON public.content_templates FOR SELECT USING (
+  user_id IS NULL OR auth.uid() = user_id
+);
+
+CREATE POLICY "insert content templates" ON public.content_templates FOR INSERT WITH CHECK (
+  user_id IS NULL OR auth.uid() = user_id
+);
+
+CREATE POLICY "update content templates" ON public.content_templates FOR UPDATE USING (
+  user_id IS NULL OR auth.uid() = user_id
+) WITH CHECK (
+  user_id IS NULL OR auth.uid() = user_id
+);
+
+CREATE POLICY "delete content templates" ON public.content_templates FOR DELETE USING (
+  user_id IS NULL OR auth.uid() = user_id
+);
+
+-- Step 6: Add comments for documentation
 COMMENT ON COLUMN public.content_templates.parent_template_id IS 'Reference to original template if this is a copy';
 COMMENT ON COLUMN public.content_templates.ai_categorized IS 'Whether this template was categorized by AI';
 COMMENT ON COLUMN public.content_templates.ai_tags IS 'Up to 3 AI-generated tags for content creator insights';

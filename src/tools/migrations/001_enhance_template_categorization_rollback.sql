@@ -18,7 +18,13 @@ DROP COLUMN IF EXISTS custom_category,
 DROP COLUMN IF EXISTS custom_format,
 DROP COLUMN IF EXISTS categorization_confidence;
 
--- Step 3: Re-add CHECK constraints
+-- Step 3: Drop RLS policies (restore original state)
+DROP POLICY IF EXISTS "select content templates" ON public.content_templates;
+DROP POLICY IF EXISTS "insert content templates" ON public.content_templates;
+DROP POLICY IF EXISTS "update content templates" ON public.content_templates;
+DROP POLICY IF EXISTS "delete content templates" ON public.content_templates;
+
+-- Step 4: Re-add CHECK constraints
 ALTER TABLE public.content_templates 
 ADD CONSTRAINT content_templates_category_check 
 CHECK (category IN ('attract', 'nurture', 'convert'));
