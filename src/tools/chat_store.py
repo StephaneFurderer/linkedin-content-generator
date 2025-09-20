@@ -246,6 +246,33 @@ class ChatStore:
         res = self.client.table("content_templates").update(updates).eq("id", template_id).execute()
         return res.data[0] if res.data else None
 
+    def update_template_categorization(
+        self,
+        template_id: str,
+        category: str,
+        format: str,
+        ai_tags: List[str],
+        ai_categorized: bool = True,
+        categorization_confidence: float = 0.0
+    ) -> Optional[Dict[str, Any]]:
+        """Update template categorization with AI analysis results."""
+        updates = {
+            "category": category,
+            "format": format,
+            "ai_tags": ai_tags[:3],  # Limit to 3 tags
+            "ai_categorized": ai_categorized,
+            "categorization_confidence": min(max(categorization_confidence, 0.0), 1.0),  # Clamp between 0 and 1
+            "custom_category": category not in ['attract', 'nurture', 'convert'],
+            "custom_format": format not in [
+                'belief_shift', 'origin_story', 'industry_myths',
+                'framework', 'step_by_step', 'how_i_how_to',
+                'objection_post', 'result_breakdown', 'client_success_story'
+            ]
+        }
+        
+        res = self.client.table("content_templates").update(updates).eq("id", template_id).execute()
+        return res.data[0] if res.data else None
+
     def delete_template(self, template_id: str) -> bool:
         """Delete a template."""
         res = self.client.table("content_templates").delete().eq("id", template_id).execute()

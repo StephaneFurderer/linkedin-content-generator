@@ -14,6 +14,12 @@ interface Template {
   tags: string[];
   screenshot_url: string | null;
   created_at: string;
+  // New AI categorization fields
+  ai_tags?: string[];
+  ai_categorized?: boolean;
+  categorization_confidence?: number;
+  custom_category?: boolean;
+  custom_format?: boolean;
 }
 
 const CATEGORIES = [
@@ -117,6 +123,36 @@ export default function TemplatesPage() {
       await fetchTemplates();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const categorizeWithAI = async (templateId: string) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/${templateId}/categorize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to categorize template');
+      }
+
+      const result = await response.json();
+      
+      // Show success message with AI insights
+      const categorization = result.categorization;
+      alert(`🤖 AI Categorization Complete!\n\nCategory: ${categorization.category}\nFormat: ${categorization.format}\nTags: ${categorization.tags.join(', ')}\nConfidence: ${Math.round(categorization.confidence * 100)}%\n\nReasoning: ${categorization.reasoning}`);
+      
+      // Refresh templates to show updated categorization
+      await fetchTemplates();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -342,11 +378,28 @@ export default function TemplatesPage() {
                     
                     {template.tags.length > 0 && (
                       <div className="flex gap-1 mb-2">
+                        <span className="text-xs text-gray-500 font-medium">Tags:</span>
                         {template.tags.map((tag, index) => (
                           <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
                             {tag}
                           </span>
                         ))}
+                      </div>
+                    )}
+                    
+                    {template.ai_tags && template.ai_tags.length > 0 && (
+                      <div className="flex gap-1 mb-2">
+                        <span className="text-xs text-purple-600 font-medium">🤖 AI Tags:</span>
+                        {template.ai_tags.map((tag: string, index: number) => (
+                          <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
+                            {tag}
+                          </span>
+                        ))}
+                        {template.categorization_confidence && (
+                          <span className="px-2 py-1 bg-purple-50 text-purple-600 text-xs rounded">
+                            {Math.round(template.categorization_confidence * 100)}% confidence
+                          </span>
+                        )}
                       </div>
                     )}
                     
@@ -356,6 +409,13 @@ export default function TemplatesPage() {
                   </div>
                   
                   <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => categorizeWithAI(template.id)}
+                      className="text-purple-600 hover:text-purple-800 text-sm flex items-center gap-1"
+                      disabled={loading}
+                    >
+                      🤖 AI Categorize
+                    </button>
                     <button
                       onClick={() => startEdit(template)}
                       className="text-blue-600 hover:text-blue-800 text-sm"
