@@ -845,6 +845,38 @@ export default function HomePage() {
     }
   }
 
+  // Function to delete a conversation
+  const deleteConversation = async (conversationId: string) => {
+    if (!confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId)
+
+      if (error) {
+        throw error
+      }
+
+      console.log('Conversation deleted:', conversationId)
+      
+      // If this was the selected conversation, clear it
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(null)
+        setMessages([])
+      }
+      
+      // Refresh the conversations list
+      fetchConversations()
+    } catch (err) {
+      console.error('Error deleting conversation:', err)
+      alert('Failed to delete conversation. Please try again.')
+    }
+  }
+
   // Dynamic panel width calculations based on all panel states
   const calculatePanelWidths = () => {
     const modes = [panel1Mode, panel2Mode, panel3Mode]
@@ -1432,21 +1464,31 @@ export default function HomePage() {
                         const urlMatch = firstUserMessage.content.match(/https?:\/\/[^\s]+/)
                         if (urlMatch) {
                           return (
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="ml-3 h-7 text-xs flex-shrink-0"
-                            >
-                              <a 
-                                href={urlMatch[0]} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1"
+                            <div className="ml-3 flex gap-2">
+                              <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs flex-shrink-0"
                               >
-                                🔗 Open Source
-                              </a>
-                            </Button>
+                                <a 
+                                  href={urlMatch[0]} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1"
+                                >
+                                  🔗 Open Source
+                                </a>
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-7 text-xs flex-shrink-0"
+                                onClick={() => deleteConversation(selectedConversation.id)}
+                              >
+                                🗑️ Delete
+                              </Button>
+                            </div>
                           )
                         }
                       }
@@ -1455,25 +1497,47 @@ export default function HomePage() {
                     // Show button if URL exists in state
                     if (url) {
                       return (
-                        <Button
-                          asChild
-                          variant="outline"
-                          size="sm"
-                          className="ml-3 h-7 text-xs flex-shrink-0"
-                        >
-                          <a 
-                            href={url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1"
+                        <div className="ml-3 flex gap-2">
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs flex-shrink-0"
                           >
-                            🔗 Open Source
-                          </a>
-                        </Button>
+                            <a 
+                              href={url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1"
+                            >
+                              🔗 Open Source
+                            </a>
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 text-xs flex-shrink-0"
+                            onClick={() => deleteConversation(selectedConversation.id)}
+                          >
+                            🗑️ Delete
+                          </Button>
+                        </div>
                       )
                     }
                     
-                    return null
+                    // If no URL, still show delete button
+                    return (
+                      <div className="ml-3">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 text-xs flex-shrink-0"
+                          onClick={() => deleteConversation(selectedConversation.id)}
+                        >
+                          🗑️ Delete
+                        </Button>
+                      </div>
+                    )
                   })()}
                 </div>
               </div>
