@@ -144,13 +144,19 @@ export default function HomePage() {
     if (activeJobs.length === 0) return
 
     const pollJobStatus = async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      // Use the production API URL directly
+      const apiUrl = 'https://linkedin-content-generator-production.up.railway.app'
+      
+      console.log('Polling job status for', activeJobs.length, 'jobs')
       
       for (const job of activeJobs) {
         try {
+          console.log('Checking status for job:', job.jobId)
           const response = await fetch(`${apiUrl}/jobs/${job.jobId}/status`)
+          
           if (response.ok) {
             const data = await response.json()
+            console.log('Job status update:', job.jobId, data.status)
             
             setActiveJobs(prev => prev.map(activeJob => 
               activeJob.jobId === job.jobId 
@@ -166,11 +172,14 @@ export default function HomePage() {
 
             // If job is complete, remove it from active jobs and refresh conversations
             if (data.status === 'SUCCESS' || data.status === 'FAILURE') {
+              console.log('Job completed:', job.jobId, data.status)
               setTimeout(() => {
                 setActiveJobs(prev => prev.filter(activeJob => activeJob.jobId !== job.jobId))
                 fetchConversations() // Refresh the conversations list
               }, 2000) // Wait 2 seconds before removing to show completion
             }
+          } else {
+            console.error('Failed to fetch job status:', response.status, response.statusText)
           }
         } catch (error) {
           console.error('Error polling job status:', error)
@@ -178,9 +187,11 @@ export default function HomePage() {
       }
     }
 
-    const interval = setInterval(pollJobStatus, 2000) // Poll every 2 seconds
+    // Poll immediately, then set up interval
+    pollJobStatus()
+    const interval = setInterval(pollJobStatus, 3000) // Poll every 3 seconds
     return () => clearInterval(interval)
-  }, [activeJobs])
+  }, [activeJobs.length]) // Only depend on length, not the entire array
 
   // Filter templates based on current filters
   const applyFilters = useCallback(() => {
@@ -259,7 +270,8 @@ export default function HomePage() {
 
     setIsCreatingPost(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      // Use the production API URL directly
+      const apiUrl = 'https://linkedin-content-generator-production.up.railway.app'
       
       // Use the background job API to create a post
       const response = await fetch(`${apiUrl}/jobs/create-post`, {
@@ -813,6 +825,7 @@ export default function HomePage() {
   // Helper function to fetch conversations (extracted for reuse)
   const fetchConversations = async () => {
     try {
+      console.log('Fetching conversations...')
       const { data, error } = await supabase
         .from('conversations')
         .select('id, title, status, created_at, updated_at, state')
@@ -822,6 +835,7 @@ export default function HomePage() {
         throw error
       }
 
+      console.log('Fetched conversations:', data?.length || 0)
       setConversations(data || [])
     } catch (err) {
       console.error('Error fetching conversations:', err)
@@ -1074,6 +1088,16 @@ export default function HomePage() {
               <div className="p-4 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-card-foreground">Posts</h2>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      console.log('Manual refresh triggered')
+                      fetchConversations()
+                    }}
+                    className="p-2 hover:bg-muted rounded transition-colors text-sm"
+                    title="Refresh Posts"
+                  >
+                    🔄
+                  </button>
                   <button
                     onClick={() => setPanel1Mode(panel1Mode === 'closed' ? 'default' : 'closed')}
                     className="p-3 hover:bg-muted rounded transition-colors text-2xl font-bold"
