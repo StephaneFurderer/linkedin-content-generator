@@ -171,10 +171,17 @@ async def delete_template(template_id: str):
 async def test_redis():
     """Test Redis connection"""
     try:
-        # Try different Redis URL environment variables
-        redis_url = os.getenv("REDIS_URL") or os.getenv("REDIS_PUBLIC_URL") or os.getenv("REDIS_PRIVATE_URL")
+        # Try different Redis URL environment variables (prioritize public URL)
+        redis_url = os.getenv("REDIS_PUBLIC_URL") or os.getenv("REDIS_URL") or os.getenv("REDIS_PRIVATE_URL")
         if not redis_url:
             return {"error": "No Redis URL found in environment variables"}
+        
+        # Show all available Redis URLs for debugging
+        all_redis_urls = {
+            "REDIS_PUBLIC_URL": os.getenv("REDIS_PUBLIC_URL"),
+            "REDIS_URL": os.getenv("REDIS_URL"),
+            "REDIS_PRIVATE_URL": os.getenv("REDIS_PRIVATE_URL")
+        }
         
         print(f"Attempting to connect to Redis: {redis_url}")
         
@@ -187,10 +194,15 @@ async def test_redis():
             "status": "success",
             "redis_url": redis_url,
             "test_value": value.decode() if value else None,
-            "message": "Redis connection successful"
+            "message": "Redis connection successful",
+            "available_urls": all_redis_urls
         }
     except Exception as e:
-        return {"error": f"Redis connection failed: {str(e)}", "redis_url": redis_url}
+        return {
+            "error": f"Redis connection failed: {str(e)}", 
+            "redis_url": redis_url,
+            "available_urls": all_redis_urls
+        }
 
 # Image upload endpoint
 @app.post("/upload-image")
