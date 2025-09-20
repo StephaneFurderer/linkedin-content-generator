@@ -924,17 +924,31 @@ export default function HomePage() {
               <h2 className="text-lg font-semibold text-card-foreground">
                 {isAddingPost ? 'Create New Post' : 'Create New Template'}
               </h2>
-              <Button 
-                onClick={() => {
-                  setIsAddingPost(false)
-                  setIsAddingTemplate(false)
-                  setPanel1Mode('default')
-                }}
-                variant="outline"
-                size="sm"
-              >
-                Cancel
-              </Button>
+              <div className="flex gap-2">
+                {isAddingTemplate && (
+                  <Button 
+                    onClick={() => {
+                      alert('🤖 AI Categorize Button Clicked!\n\nThis will analyze your template content and suggest category, format, and tags.');
+                    }}
+                    variant="secondary"
+                    size="sm"
+                    className="bg-purple-600 text-white hover:bg-purple-700"
+                  >
+                    🤖 AI Categorize
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => {
+                    setIsAddingPost(false)
+                    setIsAddingTemplate(false)
+                    setPanel1Mode('default')
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+              </div>
           </div>
             
             <div className="flex-1 overflow-y-auto p-4">
