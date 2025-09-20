@@ -4,6 +4,7 @@
 
 -- Step 1: Add new columns to content_templates table
 ALTER TABLE public.content_templates 
+ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id),
 ADD COLUMN IF NOT EXISTS parent_template_id uuid REFERENCES public.content_templates(id),
 ADD COLUMN IF NOT EXISTS ai_categorized boolean DEFAULT false,
 ADD COLUMN IF NOT EXISTS ai_tags text[] DEFAULT '{}',

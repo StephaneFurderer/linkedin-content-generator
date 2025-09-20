@@ -11,6 +11,7 @@ DROP INDEX IF EXISTS idx_content_templates_custom_format;
 
 -- Step 2: Remove new columns
 ALTER TABLE public.content_templates 
+DROP COLUMN IF EXISTS user_id,
 DROP COLUMN IF EXISTS parent_template_id,
 DROP COLUMN IF EXISTS ai_categorized,
 DROP COLUMN IF EXISTS ai_tags,
