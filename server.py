@@ -527,6 +527,8 @@ Send /create_post followed by URL and your notes:
 This is amazing! I learned that...
 ```
 
+*Target audience: Insurance leaders, C-level executives, data leaders, financial services*
+
 **Advanced Usage:**
 Send /post followed by your YAML input:
 
@@ -565,9 +567,12 @@ This article shows how insurance leaders can get real-time loss updates. Key ins
             conv = store.create_conversation(title="Telegram Generated Post")
             
             # Let AI determine category and format automatically
+            # Target audience is always insurance leaders, C-level executives, data leaders, financial services
             simplified_input = f"""
 - url: {text}
 - notes: {text}
+- icp: insurance leaders, chief insurance officers, data leaders, financial services executives
+- dream: improved operational efficiency, better risk management, data-driven decision making
 - auto_categorize: true
 - auto_format: true
 """
