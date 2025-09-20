@@ -124,11 +124,63 @@ export default function HomePage() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [editingPostTitle, setEditingPostTitle] = useState('')
   const [isUpdatingPost, setIsUpdatingPost] = useState(false)
+  
+  // Background job tracking state
+  const [activeJobs, setActiveJobs] = useState<Array<{
+    jobId: string
+    conversationId: string
+    title: string
+    status: string
+    progress: number
+  }>>([])
 
   // Fetch conversations on component mount
   useEffect(() => {
     fetchConversations()
   }, [])
+
+  // Poll job status for active jobs
+  useEffect(() => {
+    if (activeJobs.length === 0) return
+
+    const pollJobStatus = async () => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      
+      for (const job of activeJobs) {
+        try {
+          const response = await fetch(`${apiUrl}/jobs/${job.jobId}/status`)
+          if (response.ok) {
+            const data = await response.json()
+            
+            setActiveJobs(prev => prev.map(activeJob => 
+              activeJob.jobId === job.jobId 
+                ? { 
+                    ...activeJob, 
+                    status: data.status,
+                    progress: data.status === 'PROCESSING' ? 50 : 
+                             data.status === 'SUCCESS' ? 100 : 
+                             data.status === 'FAILURE' ? 0 : activeJob.progress
+                  }
+                : activeJob
+            ))
+
+            // If job is complete, remove it from active jobs and refresh conversations
+            if (data.status === 'SUCCESS' || data.status === 'FAILURE') {
+              setTimeout(() => {
+                setActiveJobs(prev => prev.filter(activeJob => activeJob.jobId !== job.jobId))
+                fetchConversations() // Refresh the conversations list
+              }, 2000) // Wait 2 seconds before removing to show completion
+            }
+          }
+        } catch (error) {
+          console.error('Error polling job status:', error)
+        }
+      }
+    }
+
+    const interval = setInterval(pollJobStatus, 2000) // Poll every 2 seconds
+    return () => clearInterval(interval)
+  }, [activeJobs])
 
   // Filter templates based on current filters
   const applyFilters = useCallback(() => {
@@ -207,25 +259,19 @@ export default function HomePage() {
 
     setIsCreatingPost(true)
     try {
-      // Use the backend API to create a conversation instead of direct Supabase insert
-      const requestBody = {
-        user_request: newPostContent.trim(),
-        conversation_title: newPostTitle.trim(),
-        category: 'manual_post'
-      }
-      
-      console.log('Creating post with request body:', requestBody)
-      console.log('API URL:', process.env.NEXT_PUBLIC_API_URL)
-      
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      console.log('Using API URL:', apiUrl)
       
-      const response = await fetch(`${apiUrl}/coordinator/start`, {
+      // Use the background job API to create a post
+      const response = await fetch(`${apiUrl}/jobs/create-post`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          draft: newPostContent.trim(),
+          title: newPostTitle.trim(),
+          category: 'manual_post'
+        }),
       })
 
       if (!response.ok) {
@@ -233,15 +279,21 @@ export default function HomePage() {
       }
 
       const result = await response.json()
-      console.log('Post created successfully:', result)
+      console.log('Post job created successfully:', result)
 
-      // Refresh the conversations list
-      await fetchConversations()
+      // Add to active jobs for progress tracking
+      setActiveJobs(prev => [...prev, {
+        jobId: result.job_id,
+        conversationId: result.conversation_id,
+        title: newPostTitle.trim(),
+        status: 'PENDING',
+        progress: 0
+      }])
       
       // Reset form and return to default mode
       handleCancelAddPost()
       
-      alert('Post created successfully!')
+      alert('Post generation started! You can track progress in the posts list.')
     } catch (err) {
       console.error('Error creating post:', err)
       
@@ -1039,6 +1091,33 @@ export default function HomePage() {
                 </div>
               </div>
               
+              {/* Progress Bar for Active Jobs */}
+              {activeJobs.length > 0 && (
+                <div className="px-4 pb-2">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900">
+                        🚀 Generating {activeJobs.length} post{activeJobs.length > 1 ? 's' : ''}...
+                      </span>
+                      <span className="text-xs text-blue-700">
+                        {activeJobs.filter(job => job.status === 'PROCESSING').length} active
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${activeJobs.length > 0 ? activeJobs.reduce((acc, job) => acc + job.progress, 0) / activeJobs.length : 0}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-blue-700 mt-1">
+                      {activeJobs.map(job => `${job.title} (${job.status})`).join(', ')}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Tab System */}
               <div className="flex">
                 <button
@@ -1094,6 +1173,44 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
+                  {/* Active Jobs - Placeholder Cards */}
+                  {activeJobs.map((job) => (
+                    <div 
+                      key={job.jobId}
+                      className="p-3 bg-blue-50 border-l-4 border-blue-400"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-blue-900 truncate">
+                            {job.title}
+                          </h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="border-blue-500 text-blue-500">
+                            {job.status === 'PENDING' ? '⏳' : 
+                             job.status === 'PROCESSING' ? '🔄' : 
+                             job.status === 'SUCCESS' ? '✅' : '❌'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-xs text-blue-700">
+                        {job.status === 'PENDING' && 'Queued for processing...'}
+                        {job.status === 'PROCESSING' && 'AI is generating your content...'}
+                        {job.status === 'SUCCESS' && 'Complete! Refreshing...'}
+                        {job.status === 'FAILURE' && 'Failed to generate content'}
+                      </div>
+                      {job.status === 'PROCESSING' && (
+                        <div className="mt-2 w-full bg-blue-200 rounded-full h-1">
+                          <div 
+                            className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                            style={{ width: `${job.progress}%` }}
+                          ></div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {/* Existing Conversations */}
                   {conversations.map((conversation) => (
                     <div 
                       key={conversation.id} 
