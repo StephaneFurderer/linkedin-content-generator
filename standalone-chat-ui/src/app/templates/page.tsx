@@ -52,6 +52,7 @@ export default function TemplatesPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [aiAnalyzed, setAiAnalyzed] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -156,6 +157,55 @@ export default function TemplatesPage() {
     }
   };
 
+  const analyzeTemplateContent = async () => {
+    if (!formData.title.trim() && !formData.content.trim()) {
+      alert('Please enter a title or content to analyze');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          content: formData.content,
+          author: formData.author
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to analyze template');
+      }
+
+      const result = await response.json();
+      const categorization = result.categorization;
+      
+      // Auto-fill the form with AI suggestions
+      setFormData(prev => ({
+        ...prev,
+        category: categorization.category,
+        format: categorization.format,
+        tags: categorization.tags.join(', ')
+      }));
+      
+      // Mark as AI analyzed
+      setAiAnalyzed(true);
+      
+      // Show success message with AI insights
+      alert(`🤖 AI Analysis Complete!\n\nCategory: ${categorization.category}\nFormat: ${categorization.format}\nTags: ${categorization.tags.join(', ')}\nConfidence: ${Math.round(categorization.confidence * 100)}%\n\nReasoning: ${categorization.reasoning}\n\nForm has been auto-filled with suggestions!`);
+      
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -168,6 +218,7 @@ export default function TemplatesPage() {
       screenshot_url: ''
     });
     setEditingTemplate(null);
+    setAiAnalyzed(false);
   };
 
   const startEdit = (template: Template) => {
@@ -182,6 +233,7 @@ export default function TemplatesPage() {
       screenshot_url: template.screenshot_url || ''
     });
     setEditingTemplate(template);
+    setAiAnalyzed(false); // Reset AI analyzed flag when editing
     setShowForm(true);
   };
 
@@ -239,6 +291,16 @@ export default function TemplatesPage() {
                 />
               </div>
             </div>
+
+            {aiAnalyzed && (
+              <div className="bg-purple-50 border border-purple-200 rounded-md p-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-600">🤖</span>
+                  <span className="text-sm text-purple-700 font-medium">AI Analysis Applied</span>
+                </div>
+                <p className="text-xs text-purple-600 mt-1">Category, format, and tags have been auto-filled based on your content.</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -316,7 +378,15 @@ export default function TemplatesPage() {
               />
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
+              <button
+                type="button"
+                onClick={() => analyzeTemplateContent()}
+                disabled={loading || (!formData.title.trim() && !formData.content.trim())}
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                🤖 AI Categorize
+              </button>
               <button
                 type="submit"
                 disabled={loading}

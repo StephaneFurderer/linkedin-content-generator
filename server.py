@@ -175,6 +175,84 @@ async def delete_template(template_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/templates/analyze")
+async def analyze_template_content(request: dict):
+    """AI-powered template content analysis (without saving)"""
+    try:
+        title = request.get('title', '')
+        content = request.get('content', '')
+        author = request.get('author', '')
+        
+        if not title and not content:
+            raise HTTPException(status_code=400, detail="Title or content is required for analysis")
+        
+        # Prepare content for AI analysis
+        content_to_analyze = f"""
+Title: {title}
+Content: {content}
+Author: {author}
+        """.strip()
+        
+        # Use OpenAI to analyze and categorize
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are an expert content creator and marketing strategist. Analyze LinkedIn post templates and categorize them for a content funnel.
+
+Your task:
+1. Determine the primary funnel stage: attract, nurture, or convert
+2. Identify the template format from these options:
+   - attract: belief_shift, origin_story, industry_myths
+   - nurture: framework, step_by_step, how_i_how_to  
+   - convert: objection_post, result_breakdown, client_success_story
+3. Generate up to 3 content creator tags that describe the template's approach
+
+Return your analysis as JSON:
+{
+  "category": "attract|nurture|convert",
+  "format": "specific_format_name",
+  "tags": ["tag1", "tag2", "tag3"],
+  "confidence": 0.85,
+  "reasoning": "Brief explanation of your categorization"
+}
+
+Focus on content creator insights and funnel positioning."""
+                },
+                {
+                    "role": "user", 
+                    "content": content_to_analyze
+                }
+            ],
+            temperature=0.3
+        )
+        
+        # Parse AI response
+        ai_response = response.choices[0].message.content
+        try:
+            import json
+            categorization = json.loads(ai_response)
+        except json.JSONDecodeError:
+            # Fallback if JSON parsing fails
+            categorization = {
+                "category": "nurture",
+                "format": "framework", 
+                "tags": ["content-analysis"],
+                "confidence": 0.5,
+                "reasoning": "AI analysis failed, using default categorization"
+            }
+        
+        return {
+            "categorization": categorization
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to analyze template: {str(e)}")
+
 @app.post("/templates/{template_id}/categorize")
 async def categorize_template(template_id: str):
     """AI-powered template categorization and tagging"""
