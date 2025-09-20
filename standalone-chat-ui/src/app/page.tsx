@@ -358,6 +358,32 @@ export default function HomePage() {
     }
   }
 
+  const deleteTemplate = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template?')) return
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/${templateId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete template')
+      }
+      
+      // Refresh templates list
+      await fetchTemplates()
+      
+      // Reset current template index if needed
+      if (currentTemplateIndex >= filteredTemplates.length - 1) {
+        setCurrentTemplateIndex(Math.max(0, filteredTemplates.length - 2))
+      }
+      
+      alert('Template deleted successfully!')
+    } catch (err: unknown) {
+      alert(`Failed to delete template: ${err instanceof Error ? err.message : 'An error occurred'}`)
+    }
+  }
+
   const handleCreateTemplate = async () => {
     if (!newTemplateTitle.trim() || !newTemplateContent.trim()) {
       alert('Please fill in both title and content')
@@ -1909,6 +1935,14 @@ export default function HomePage() {
                                   )}
                                 </div>
                               </div>
+                              <Button
+                                onClick={() => deleteTemplate(filteredTemplates[currentTemplateIndex]?.id)}
+                                variant="destructive"
+                                size="sm"
+                                className="h-7 text-xs flex-shrink-0"
+                              >
+                                🗑️ Delete
+                              </Button>
                             </div>
                           </CardHeader>
                           <CardContent className="pt-0">
