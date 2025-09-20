@@ -516,9 +516,18 @@ if TELEGRAM_BOT_TOKEN and os.getenv("ENVIRONMENT") == "production":
 🤖 **LinkedIn Content Generator Bot**
 
 **Commands:**
-/post - Generate a LinkedIn post
+/create_post - Generate a LinkedIn post (simplified)
+/post - Generate a LinkedIn post (advanced YAML)
 
-**Usage:**
+**Simple Usage (Recommended):**
+Send /create_post followed by URL and your notes:
+
+```
+/create_post https://example.com/article
+This is amazing! I learned that...
+```
+
+**Advanced Usage:**
 Send /post followed by your YAML input:
 
 ```
@@ -532,16 +541,71 @@ Send /post followed by your YAML input:
 
 **Example:**
 ```
-/post
-- url: https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
-- icp: insurance leaders
-- dream: real time losses updates
-- category: nurture
-- format: how to
+/create_post https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
+This article shows how insurance leaders can get real-time loss updates. Key insight: automation reduces response time by 70%.
 ```
         """
         bot.reply_to(message, welcome_text, parse_mode='Markdown')
     
+    @bot.message_handler(commands=['create_post'])
+    def handle_create_post_command(message):
+        """Simplified command: just URL + notes, AI picks template"""
+        try:
+            # Extract URL and notes from message
+            text = message.text.replace('/create_post', '').strip()
+            
+            if not text:
+                bot.reply_to(message, "❌ Please provide URL and your notes after /create_post command")
+                return
+            
+            # Send processing message
+            processing_msg = bot.reply_to(message, "🔄 Analyzing article and finding best template...")
+            
+            # Create conversation and process with simplified input
+            conv = store.create_conversation(title="Telegram Generated Post")
+            
+            # Let AI determine category and format automatically
+            simplified_input = f"""
+- url: {text}
+- notes: {text}
+- auto_categorize: true
+- auto_format: true
+"""
+            
+            result = coordinator.process_request(simplified_input, conv["id"])
+            
+            # Send result
+            if result.get("final_output"):
+                output = result["final_output"]
+                if len(output) > 4000:
+                    chunks = [output[i:i+4000] for i in range(0, len(output), 4000)]
+                    for i, chunk in enumerate(chunks):
+                        if i == 0:
+                            bot.edit_message_text(
+                                f"✅ **Generated LinkedIn Post:**\n\n{chunk}",
+                                chat_id=message.chat.id,
+                                message_id=processing_msg.message_id,
+                                parse_mode='Markdown'
+                            )
+                        else:
+                            bot.send_message(message.chat.id, chunk)
+                else:
+                    bot.edit_message_text(
+                        f"✅ **Generated LinkedIn Post:**\n\n{output}",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id,
+                        parse_mode='Markdown'
+                    )
+            else:
+                bot.edit_message_text(
+                    "❌ Failed to generate post. Please try again.",
+                    chat_id=message.chat.id,
+                    message_id=processing_msg.message_id
+                )
+                
+        except Exception as e:
+            bot.reply_to(message, f"❌ Error: {str(e)}")
+
     @bot.message_handler(commands=['post'])
     def handle_post_command(message):
         try:
