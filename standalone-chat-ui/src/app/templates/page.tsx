@@ -270,11 +270,12 @@ export default function TemplatesPage() {
             </h2>
             <button
               type="button"
-              onClick={() => analyzeTemplateContent()}
-              disabled={loading || (!formData.title.trim() && !formData.content.trim())}
-              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+              onClick={() => {
+                alert('🤖 AI Categorize Button Clicked!\n\nThis is a placeholder button.\nThe real AI functionality will analyze your template content and suggest category, format, and tags.');
+              }}
+              className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 font-bold text-lg border-4 border-yellow-400 shadow-lg"
             >
-              🤖 AI Categorize
+              🤖 AI CATEGORIZE (PLACEHOLDER)
             </button>
           </div>
           
