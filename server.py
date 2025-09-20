@@ -563,8 +563,23 @@ This article shows how insurance leaders can get real-time loss updates. Key ins
             # Send processing message
             processing_msg = bot.reply_to(message, "🔄 Analyzing article and finding best template...")
             
-            # Create conversation and process with simplified input
-            conv = store.create_conversation(title="Telegram Generated Post")
+            # Generate a meaningful title from the article URL and user notes
+            try:
+                # Extract domain/article info for title generation
+                import re
+                url_match = re.search(r'https?://([^/]+)', text)
+                domain = url_match.group(1) if url_match else "Article"
+                
+                # Create a title based on URL and notes (first 50 chars of notes)
+                notes_preview = text.split('\n', 1)[1] if '\n' in text else text
+                notes_preview = notes_preview[:50] + "..." if len(notes_preview) > 50 else notes_preview
+                
+                generated_title = f"Post from {domain}: {notes_preview}"
+            except:
+                generated_title = "Telegram Generated Post"
+            
+            # Create conversation with generated title
+            conv = store.create_conversation(title=generated_title)
             
             # Let AI determine category and format automatically
             # Target audience is always insurance leaders, C-level executives, data leaders, financial services
