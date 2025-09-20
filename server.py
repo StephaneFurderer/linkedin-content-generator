@@ -171,9 +171,21 @@ async def delete_template(template_id: str):
 async def test_redis():
     """Test Redis connection"""
     try:
-        redis_url = os.getenv("REDIS_URL")
+        # Try different Redis URL environment variables
+        redis_url = os.getenv("REDIS_URL") or os.getenv("REDIS_PUBLIC_URL") or os.getenv("REDIS_PRIVATE_URL")
         if not redis_url:
-            return {"error": "REDIS_URL not found in environment variables"}
+            return {"error": "No Redis URL found in environment variables"}
+        
+        # If it's the internal URL, try to construct the public URL
+        if "railway.internal" in redis_url:
+            # Extract credentials and construct public URL
+            import re
+            match = re.search(r'redis://([^:]+):([^@]+)@', redis_url)
+            if match:
+                username = match.group(1)
+                password = match.group(2)
+                public_url = f"redis://{username}:{password}@redis-production-89f6.up.railway.app:6379"
+                redis_url = public_url
         
         r = redis.from_url(redis_url)
         # Test basic operations
