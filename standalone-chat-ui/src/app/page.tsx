@@ -305,7 +305,7 @@ export default function HomePage() {
       // Reset form and return to default mode
       handleCancelAddPost()
       
-      alert('Post generation started! You can track progress in the posts list.')
+      console.log('Post generation started! You can track progress in the posts list.')
     } catch (err) {
       console.error('Error creating post:', err)
       
@@ -351,7 +351,7 @@ export default function HomePage() {
       setNewTemplateTags(categorization.tags.join(', '))
       
       // Show success message with AI insights
-      alert(`🤖 AI Analysis Complete!\n\nCategory: ${categorization.category}\nFormat: ${categorization.format}\nTags: ${categorization.tags.join(', ')}\nConfidence: ${Math.round(categorization.confidence * 100)}%\n\nReasoning: ${categorization.reasoning}\n\nForm has been auto-filled with suggestions!`)
+      console.log(`🤖 AI Analysis Complete! Category: ${categorization.category}, Format: ${categorization.format}, Tags: ${categorization.tags.join(', ')}, Confidence: ${Math.round(categorization.confidence * 100)}%`)
       
     } catch (err: unknown) {
       alert(`Failed to analyze template: ${err instanceof Error ? err.message : 'An error occurred'}`)
@@ -378,7 +378,7 @@ export default function HomePage() {
         setCurrentTemplateIndex(Math.max(0, filteredTemplates.length - 2))
       }
       
-      alert('Template deleted successfully!')
+      console.log('Template deleted successfully!')
     } catch (err: unknown) {
       alert(`Failed to delete template: ${err instanceof Error ? err.message : 'An error occurred'}`)
     }
@@ -429,7 +429,7 @@ export default function HomePage() {
       setIsAddingTemplate(false)
       setPanel1Mode('default')
       
-      alert('Template created successfully!')
+      console.log('Template created successfully!')
     } catch (err) {
       console.error('Error creating template:', err)
       alert(`Failed to create template: ${err instanceof Error ? err.message : 'Unknown error'}`)

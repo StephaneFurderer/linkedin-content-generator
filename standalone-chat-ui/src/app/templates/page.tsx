@@ -146,7 +146,7 @@ export default function TemplatesPage() {
       
       // Show success message with AI insights
       const categorization = result.categorization;
-      alert(`🤖 AI Categorization Complete!\n\nCategory: ${categorization.category}\nFormat: ${categorization.format}\nTags: ${categorization.tags.join(', ')}\nConfidence: ${Math.round(categorization.confidence * 100)}%\n\nReasoning: ${categorization.reasoning}`);
+      console.log(`🤖 AI Categorization Complete! Category: ${categorization.category}, Format: ${categorization.format}, Tags: ${categorization.tags.join(', ')}, Confidence: ${Math.round(categorization.confidence * 100)}%`);
       
       // Refresh templates to show updated categorization
       await fetchTemplates();
@@ -159,7 +159,7 @@ export default function TemplatesPage() {
 
   const analyzeTemplateContent = async () => {
     if (!formData.title.trim() && !formData.content.trim()) {
-      alert('Please enter a title or content to analyze');
+      console.log('Please enter a title or content to analyze');
       return;
     }
 
@@ -197,7 +197,7 @@ export default function TemplatesPage() {
       setAiAnalyzed(true);
       
       // Show success message with AI insights
-      alert(`🤖 AI Analysis Complete!\n\nCategory: ${categorization.category}\nFormat: ${categorization.format}\nTags: ${categorization.tags.join(', ')}\nConfidence: ${Math.round(categorization.confidence * 100)}%\n\nReasoning: ${categorization.reasoning}\n\nForm has been auto-filled with suggestions!`);
+      console.log(`🤖 AI Analysis Complete! Category: ${categorization.category}, Format: ${categorization.format}, Tags: ${categorization.tags.join(', ')}, Confidence: ${Math.round(categorization.confidence * 100)}%`);
       
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
