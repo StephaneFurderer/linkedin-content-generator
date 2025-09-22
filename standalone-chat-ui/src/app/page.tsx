@@ -47,20 +47,23 @@ const CATEGORIES = [
 
 const FORMATS = {
   attract: [
+    { value: 'transformation', label: 'Transformation' },
+    { value: 'misconception', label: 'Misconception' },
     { value: 'belief_shift', label: 'Belief Shift' },
-    { value: 'origin_story', label: 'Origin Story' },
-    { value: 'industry_myths', label: 'Industry Myths' }
+    { value: 'hidden_truth', label: 'Hidden Truth' },
   ],
   nurture: [
-    { value: 'framework', label: 'Framework' },
     { value: 'step_by_step', label: 'Step-by-step' },
-    { value: 'how_i_how_to', label: 'How I / How to' }
+    { value: 'faq_answer', label: 'FAQ Answer' },
+    { value: 'process_breakdown', label: 'Process Breakdown' },
+    { value: 'quick_win', label: 'Quick Win' },
   ],
   convert: [
-    { value: 'objection_post', label: 'Objection Post' },
-    { value: 'result_breakdown', label: 'Result Breakdown' },
-    { value: 'client_success_story', label: 'Client Success Story' }
-  ]
+    { value: 'client_fix', label: 'Client Fix' },
+    { value: 'case_study', label: 'Case Study' },
+    { value: 'objection_reframe', label: 'Objection Reframe' },
+    { value: 'client_quote', label: 'Client Quote' },
+  ],
 }
 
 
@@ -84,7 +87,7 @@ export default function HomePage() {
   const [newTemplateAuthor, setNewTemplateAuthor] = useState('')
   const [newTemplateLinkedinUrl, setNewTemplateLinkedinUrl] = useState('')
   const [newTemplateCategory, setNewTemplateCategory] = useState('attract')
-  const [newTemplateFormat, setNewTemplateFormat] = useState('belief_shift')
+  const [newTemplateFormat, setNewTemplateFormat] = useState('transformation')
   const [newTemplateTags, setNewTemplateTags] = useState('')
   const [newTemplateScreenshotUrl, setNewTemplateScreenshotUrl] = useState('')
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
@@ -257,7 +260,7 @@ export default function HomePage() {
     setNewTemplateAuthor('')
     setNewTemplateLinkedinUrl('')
     setNewTemplateCategory('attract')
-    setNewTemplateFormat('belief_shift')
+    setNewTemplateFormat('transformation')
     setNewTemplateTags('')
     setNewTemplateScreenshotUrl('')
   }
@@ -423,7 +426,7 @@ export default function HomePage() {
       setNewTemplateAuthor('')
       setNewTemplateLinkedinUrl('')
       setNewTemplateCategory('attract')
-      setNewTemplateFormat('belief_shift')
+      setNewTemplateFormat('transformation')
       setNewTemplateTags('')
       setNewTemplateScreenshotUrl('')
       setIsAddingTemplate(false)
@@ -1783,15 +1786,21 @@ export default function HomePage() {
                             <SelectValue placeholder="Select format..." />
                           </SelectTrigger>
                           <SelectContent>
+                            {/* Attract */}
+                            <SelectItem value="transformation">Transformation</SelectItem>
+                            <SelectItem value="misconception">Misconception</SelectItem>
                             <SelectItem value="belief_shift">Belief Shift</SelectItem>
-                            <SelectItem value="origin_story">Origin Story</SelectItem>
-                            <SelectItem value="industry_myths">Industry Myths</SelectItem>
-                            <SelectItem value="framework">Framework</SelectItem>
+                            <SelectItem value="hidden_truth">Hidden Truth</SelectItem>
+                            {/* Nurture */}
                             <SelectItem value="step_by_step">Step-by-step</SelectItem>
-                            <SelectItem value="how_i_how_to">How I / How to</SelectItem>
-                            <SelectItem value="objection_post">Objection Post</SelectItem>
-                            <SelectItem value="result_breakdown">Result Breakdown</SelectItem>
-                            <SelectItem value="client_success_story">Client Success Story</SelectItem>
+                            <SelectItem value="faq_answer">FAQ Answer</SelectItem>
+                            <SelectItem value="process_breakdown">Process Breakdown</SelectItem>
+                            <SelectItem value="quick_win">Quick Win</SelectItem>
+                            {/* Convert */}
+                            <SelectItem value="client_fix">Client Fix</SelectItem>
+                            <SelectItem value="case_study">Case Study</SelectItem>
+                            <SelectItem value="objection_reframe">Objection Reframe</SelectItem>
+                            <SelectItem value="client_quote">Client Quote</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
