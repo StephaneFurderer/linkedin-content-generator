@@ -39,13 +39,13 @@ import { Badge } from '@/components/ui/badge'
 
 type PanelMode = 'closed' | 'default' | 'expanded'
 
-const CATEGORIES = [
+const FALLBACK_CATEGORIES = [
   { value: 'attract', label: 'Attract', description: 'Build awareness and trust' },
   { value: 'nurture', label: 'Nurture', description: 'Show authority/create demand' },
   { value: 'convert', label: 'Convert', description: 'Qualify and filter buyers' }
 ]
 
-const FORMATS = {
+const FALLBACK_FORMATS = {
   attract: [
     { value: 'transformation', label: 'Transformation' },
     { value: 'misconception', label: 'Misconception' },
@@ -68,6 +68,12 @@ const FORMATS = {
 
 
 export default function HomePage() {
+  // Dynamic category/format options derived from templates
+  const [dynamicCategories, setDynamicCategories] = useState<{ value: string, label: string, description?: string }[]>(FALLBACK_CATEGORIES)
+  const [dynamicFormatsByCategory, setDynamicFormatsByCategory] = useState<Record<string, { value: string, label: string }[]>>(FALLBACK_FORMATS)
+
+  const toTitle = (s: string) => s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
   const [panel1Mode, setPanel1Mode] = useState<PanelMode>('default')
   const [panel2Mode, setPanel2Mode] = useState<PanelMode>('default')
   const [panel3Mode, setPanel3Mode] = useState<PanelMode>('default')
@@ -798,6 +804,31 @@ export default function HomePage() {
         setTemplates(templatesList)
         setFilteredTemplates(templatesList)
       }
+
+      // Build dynamic category/options from fetched templates
+      const catSet = Array.from(new Set((templatesList as Template[]).map(t => t.category))).filter(Boolean)
+      if (catSet.length > 0) {
+        const builtCats = catSet.map((c) => ({
+          value: c,
+          label: c.charAt(0).toUpperCase() + c.slice(1),
+          description: c === 'attract' ? 'Build awareness and trust' : c === 'nurture' ? 'Show authority/create demand' : c === 'convert' ? 'Qualify and filter buyers' : undefined,
+        }))
+        setDynamicCategories(builtCats)
+      }
+
+      const grouped: Record<string, Set<string>> = {}
+      ;(templatesList as Template[]).forEach(t => {
+        grouped[t.category] = grouped[t.category] || new Set<string>()
+        grouped[t.category].add(t.format)
+      })
+      const builtFormats: Record<string, { value: string, label: string }[]> = {}
+      Object.entries(grouped).forEach(([cat, set]) => {
+        const arr = Array.from(set).map(v => ({ value: v, label: toTitle(v) }))
+        if (arr.length > 0) builtFormats[cat] = arr
+      })
+      if (Object.keys(builtFormats).length > 0) {
+        setDynamicFormatsByCategory(prev => ({ ...prev, ...builtFormats }))
+      }
       setCurrentTemplateIndex(0)
     } catch (err) {
       console.error('Error fetching templates:', err)
@@ -1096,7 +1127,7 @@ export default function HomePage() {
                             onValueChange={(value) => {
                               setNewTemplateCategory(value)
                               // Reset format when category changes
-                              const categoryFormats = FORMATS[value as keyof typeof FORMATS]
+                              const categoryFormats = dynamicFormatsByCategory[value as keyof typeof dynamicFormatsByCategory]
                               if (categoryFormats && categoryFormats.length > 0) {
                                 setNewTemplateFormat(categoryFormats[0].value)
                               }
@@ -1107,7 +1138,7 @@ export default function HomePage() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {CATEGORIES.map((category) => (
+                              {dynamicCategories.map((category) => (
                                 <SelectItem key={category.value} value={category.value}>
                                   {category.label} - {category.description}
                                 </SelectItem>
@@ -1128,7 +1159,7 @@ export default function HomePage() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {FORMATS[newTemplateCategory as keyof typeof FORMATS]?.map((format) => (
+                              {dynamicFormatsByCategory[newTemplateCategory as keyof typeof dynamicFormatsByCategory]?.map((format) => (
                                 <SelectItem key={format.value} value={format.value}>
                                   {format.label}
                                 </SelectItem>
@@ -1787,20 +1818,23 @@ export default function HomePage() {
                           </SelectTrigger>
                           <SelectContent>
                             {/* Attract */}
-                            <SelectItem value="transformation">Transformation</SelectItem>
-                            <SelectItem value="misconception">Misconception</SelectItem>
-                            <SelectItem value="belief_shift">Belief Shift</SelectItem>
-                            <SelectItem value="hidden_truth">Hidden Truth</SelectItem>
+                            {dynamicFormatsByCategory['attract']?.map(f => (
+                              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                            )) || FALLBACK_FORMATS.attract.map(f => (
+                              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                            ))}
                             {/* Nurture */}
-                            <SelectItem value="step_by_step">Step-by-step</SelectItem>
-                            <SelectItem value="faq_answer">FAQ Answer</SelectItem>
-                            <SelectItem value="process_breakdown">Process Breakdown</SelectItem>
-                            <SelectItem value="quick_win">Quick Win</SelectItem>
+                            {dynamicFormatsByCategory['nurture']?.map(f => (
+                              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                            )) || FALLBACK_FORMATS.nurture.map(f => (
+                              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                            ))}
                             {/* Convert */}
-                            <SelectItem value="client_fix">Client Fix</SelectItem>
-                            <SelectItem value="case_study">Case Study</SelectItem>
-                            <SelectItem value="objection_reframe">Objection Reframe</SelectItem>
-                            <SelectItem value="client_quote">Client Quote</SelectItem>
+                            {dynamicFormatsByCategory['convert']?.map(f => (
+                              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                            )) || FALLBACK_FORMATS.convert.map(f => (
+                              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <Button
@@ -1838,7 +1872,7 @@ export default function HomePage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
-                        {CATEGORIES.map((category) => (
+                        {dynamicCategories.map((category) => (
                           <SelectItem key={category.value} value={category.value}>
                             {category.label}
                           </SelectItem>
@@ -1856,13 +1890,13 @@ export default function HomePage() {
                       <SelectContent>
                         <SelectItem value="all">All Formats</SelectItem>
                         {templateFilters.category ? (
-                          FORMATS[templateFilters.category as keyof typeof FORMATS]?.map((format) => (
+                          dynamicFormatsByCategory[templateFilters.category as keyof typeof dynamicFormatsByCategory]?.map((format) => (
                             <SelectItem key={format.value} value={format.value}>
                               {format.label}
                             </SelectItem>
                           ))
                         ) : (
-                          Object.values(FORMATS).flat().map((format) => (
+                          Object.values(dynamicFormatsByCategory).flat().map((format) => (
                             <SelectItem key={format.value} value={format.value}>
                               {format.label}
                             </SelectItem>
