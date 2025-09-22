@@ -1966,10 +1966,10 @@ export default function HomePage() {
                                 </h3>
                                 <div className="flex items-center gap-2">
                                   <Badge variant="outline" className="text-xs">
-                                    {CATEGORIES.find(c => c.value === filteredTemplates[currentTemplateIndex]?.category)?.label || filteredTemplates[currentTemplateIndex]?.category}
+                                    {dynamicCategories.find(c => c.value === filteredTemplates[currentTemplateIndex]?.category)?.label || filteredTemplates[currentTemplateIndex]?.category}
                                   </Badge>
                                   <Badge variant="secondary" className="text-xs">
-                                    {Object.values(FORMATS).flat().find(f => f.value === filteredTemplates[currentTemplateIndex]?.format)?.label || filteredTemplates[currentTemplateIndex]?.format}
+                                    {Object.values(dynamicFormatsByCategory).flat().find(f => f.value === filteredTemplates[currentTemplateIndex]?.format)?.label || filteredTemplates[currentTemplateIndex]?.format}
                                   </Badge>
                                   {filteredTemplates[currentTemplateIndex]?.author && (
                                     <span className="text-xs text-muted-foreground">
