@@ -11,6 +11,7 @@ import telebot
 import asyncio
 import threading
 import redis
+from typing import Tuple, List
 
 from src.tools.chat_store import ChatStore, Coordinator
 from celery_app import app as celery_app
@@ -79,6 +80,67 @@ class TemplateRequest(BaseModel):
     linkedin_url: Optional[str] = None
     tags: Optional[List[str]] = None
     screenshot_url: Optional[str] = None
+def _normalize_and_clamp(category: Optional[str], fmt: Optional[str], tags: Optional[List[str]] = None) -> Tuple[str, str, List[str]]:
+    """Normalize and clamp AI categorization to predefined taxonomy.
+    Ensures tags never override the canonical format/category.
+    """
+    allowed = {
+        "attract": ["transformation", "misconception", "belief_shift", "hidden_truth"],
+        "nurture": ["step_by_step", "faq_answer", "process_breakdown", "quick_win"],
+        "convert": ["client_fix", "case_study", "objection_reframe", "client_quote"],
+    }
+
+    def norm(s: Optional[str]) -> Optional[str]:
+        if not s:
+            return None
+        return s.strip().lower().replace(" ", "_")
+
+    cat = norm(category)
+    fm = norm(fmt)
+
+    # If format alone indicates a category, infer it
+    if not cat and fm:
+        for k, v in allowed.items():
+            if fm in v:
+                cat = k
+                break
+
+    # Default category if missing/invalid
+    if cat not in allowed:
+        cat = "nurture"
+
+    # Clamp/redirect format
+    if fm not in allowed[cat] if fm else True:
+        # If format exists under another category, switch category to match
+        found_cat = None
+        if fm:
+            for k, v in allowed.items():
+                if fm in v:
+                    found_cat = k
+                    break
+        if found_cat:
+            cat = found_cat
+        else:
+            # Fallback to first allowed format for the chosen category
+            fm = allowed[cat][0]
+
+    # Ensure fm set
+    if not fm:
+        fm = allowed[cat][0]
+
+    # Clean tags (do not let tags affect category/format)
+    cleaned_tags: List[str] = []
+    if tags:
+        for t in tags:
+            if isinstance(t, str):
+                tt = t.strip()
+                if tt:
+                    cleaned_tags.append(tt)
+            if len(cleaned_tags) >= 3:
+                break
+
+    return cat, fm, cleaned_tags
+
 
 
 @app.post("/coordinator/start")
@@ -210,8 +272,9 @@ Your task:
    - attract: transformation, misconception, belief_shift, hidden_truth
    - nurture: step_by_step, faq_answer, process_breakdown, quick_win
    - convert: client_fix, case_study, objection_reframe, client_quote
-3. Normalize the format to snake_case as shown above (e.g., "FAQ Answer" -> "faq_answer").
-4. Generate up to 3 content creator tags that describe the template's approach
+3. STRICT: Choose a format ONLY from the allowed lists above. Do NOT invent new formats.
+4. Normalize to snake_case (e.g., "FAQ Answer" -> "faq_answer").
+5. Generate up to 3 tags describing the approach. Tags MUST NOT override the chosen category/format.
 
 Return your analysis as JSON:
 {
@@ -246,6 +309,13 @@ Focus on content creator insights and funnel positioning."""
                 "confidence": 0.5,
                 "reasoning": "AI analysis failed, using default categorization"
             }
+        # Clamp to predefined taxonomy so tags never override category/format
+        clamped_cat, clamped_fmt, clamped_tags = _normalize_and_clamp(
+            categorization.get("category"), categorization.get("format"), categorization.get("tags", [])
+        )
+        categorization["category"] = clamped_cat
+        categorization["format"] = clamped_fmt
+        categorization["tags"] = clamped_tags
         
         return {
             "categorization": categorization
@@ -287,8 +357,9 @@ Your task:
    - attract: transformation, misconception, belief_shift, hidden_truth
    - nurture: step_by_step, faq_answer, process_breakdown, quick_win
    - convert: client_fix, case_study, objection_reframe, client_quote
-3. Normalize the format to snake_case as shown above (e.g., "FAQ Answer" -> "faq_answer").
-4. Generate up to 3 content creator tags that describe the template's approach
+3. STRICT: Choose a format ONLY from the allowed lists above. Do NOT invent new formats.
+4. Normalize to snake_case (e.g., "FAQ Answer" -> "faq_answer").
+5. Generate up to 3 tags describing the approach. Tags MUST NOT override the chosen category/format.
 
 Return your analysis as JSON:
 {
@@ -323,6 +394,13 @@ Focus on content creator insights and funnel positioning."""
                 "confidence": 0.5,
                 "reasoning": "AI analysis failed, using default categorization"
             }
+        # Clamp to predefined taxonomy so tags never override category/format
+        clamped_cat, clamped_fmt, clamped_tags = _normalize_and_clamp(
+            categorization.get("category"), categorization.get("format"), categorization.get("tags", [])
+        )
+        categorization["category"] = clamped_cat
+        categorization["format"] = clamped_fmt
+        categorization["tags"] = clamped_tags
         
         # Update the template with AI categorization
         updated_template = store.update_template_categorization(
