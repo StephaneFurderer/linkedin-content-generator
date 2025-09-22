@@ -91,6 +91,9 @@ export default function HomePage() {
   const [newTemplateTitle, setNewTemplateTitle] = useState('')
   const [newTemplateContent, setNewTemplateContent] = useState('')
   const [newTemplateAuthor, setNewTemplateAuthor] = useState('')
+  const [authorOptions, setAuthorOptions] = useState<string[]>([])
+  const [authorMode, setAuthorMode] = useState<'select' | 'custom'>('select')
+  const [authorSelected, setAuthorSelected] = useState('')
   const [newTemplateLinkedinUrl, setNewTemplateLinkedinUrl] = useState('')
   const [newTemplateCategory, setNewTemplateCategory] = useState('attract')
   const [newTemplateFormat, setNewTemplateFormat] = useState('transformation')
@@ -366,6 +369,33 @@ export default function HomePage() {
       alert(`Failed to analyze template: ${err instanceof Error ? err.message : 'An error occurred'}`)
     }
   }
+
+  // Load existing authors when opening the template form
+  useEffect(() => {
+    const loadAuthors = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL
+        const res = await fetch(`${apiUrl}/templates`)
+        const data = await res.json()
+        const list: Template[] = data.templates || []
+        const authors = Array.from(new Set(list.map(t => t.author).filter(Boolean))) as string[]
+        setAuthorOptions(authors)
+        if (authors.length > 0) {
+          setAuthorSelected(authors[0])
+          setNewTemplateAuthor(authors[0])
+          setAuthorMode('select')
+        } else {
+          setAuthorMode('custom')
+        }
+      } catch {
+        setAuthorOptions([])
+        setAuthorMode('custom')
+      }
+    }
+    if (isAddingTemplate) {
+      loadAuthors()
+    }
+  }, [isAddingTemplate])
 
   const deleteTemplate = async (templateId: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return
@@ -1097,12 +1127,48 @@ export default function HomePage() {
                           <label className="block text-sm font-medium text-card-foreground mb-2">
                             Author
                           </label>
-                          <Input
-                            value={newTemplateAuthor}
-                            onChange={(e) => setNewTemplateAuthor(e.target.value)}
-                            placeholder="Author name"
-                            disabled={isCreatingTemplate}
-                          />
+                          {authorOptions.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Select
+                                value={authorMode === 'select' ? (authorSelected || '') : 'custom'}
+                                onValueChange={(val) => {
+                                  if (val === 'custom') {
+                                    setAuthorMode('custom')
+                                    setNewTemplateAuthor('')
+                                  } else {
+                                    setAuthorMode('select')
+                                    setAuthorSelected(val)
+                                    setNewTemplateAuthor(val)
+                                  }
+                                }}
+                                disabled={isCreatingTemplate}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select author" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {authorOptions.map(a => (
+                                    <SelectItem key={a} value={a}>{a}</SelectItem>
+                                  ))}
+                                  <SelectItem value="custom">+ Custom...</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                value={newTemplateAuthor}
+                                onChange={(e) => setNewTemplateAuthor(e.target.value)}
+                                placeholder="Enter new author"
+                                disabled={isCreatingTemplate || authorMode !== 'custom'}
+                              />
+                            </div>
+                          )}
+                          {authorOptions.length === 0 && (
+                            <Input
+                              value={newTemplateAuthor}
+                              onChange={(e) => setNewTemplateAuthor(e.target.value)}
+                              placeholder="Author name"
+                              disabled={isCreatingTemplate}
+                            />
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-card-foreground mb-2">

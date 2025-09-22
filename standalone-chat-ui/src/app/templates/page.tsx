@@ -56,6 +56,9 @@ export default function TemplatesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [aiAnalyzed, setAiAnalyzed] = useState(false);
+  const [authorOptions, setAuthorOptions] = useState<string[]>([]);
+  const [authorMode, setAuthorMode] = useState<'select' | 'custom'>('select');
+  const [authorSelected, setAuthorSelected] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -72,6 +75,17 @@ export default function TemplatesPage() {
   useEffect(() => {
     fetchTemplates();
   }, []);
+
+  useEffect(() => {
+    // Build author list from current templates
+    const authors = Array.from(new Set(templates.map(t => t.author).filter(Boolean))) as string[];
+    setAuthorOptions(authors);
+    if (authors.length > 0 && !authorSelected) {
+      setAuthorSelected(authors[0]);
+      setAuthorMode('select');
+      setFormData(prev => ({ ...prev, author: authors[0] }));
+    }
+  }, [templates]);
 
   const fetchTemplates = async () => {
     try {
@@ -282,7 +296,7 @@ export default function TemplatesPage() {
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                 <input
@@ -296,12 +310,46 @@ export default function TemplatesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Author</label>
-                <input
-                  type="text"
-                  value={formData.author}
-                  onChange={(e) => setFormData({...formData, author: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {authorOptions.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={authorMode === 'select' ? (authorSelected || '') : 'custom'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'custom') {
+                          setAuthorMode('custom');
+                          setFormData({...formData, author: ''});
+                        } else {
+                          setAuthorMode('select');
+                          setAuthorSelected(val);
+                          setFormData({...formData, author: val});
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {authorOptions.map(a => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                      <option value="custom">+ Custom...</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={formData.author}
+                      onChange={(e) => setFormData({...formData, author: e.target.value})}
+                      placeholder="Enter new author"
+                      disabled={authorMode !== 'custom'}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+                {authorOptions.length === 0 && (
+                  <input
+                    type="text"
+                    value={formData.author}
+                    onChange={(e) => setFormData({...formData, author: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
               </div>
             </div>
 
