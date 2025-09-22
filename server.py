@@ -207,10 +207,11 @@ Author: {author}
 Your task:
 1. Determine the primary funnel stage: attract, nurture, or convert
 2. Identify the template format from these options:
-   - attract: belief_shift, origin_story, industry_myths
-   - nurture: framework, step_by_step, how_i_how_to  
-   - convert: objection_post, result_breakdown, client_success_story
-3. Generate up to 3 content creator tags that describe the template's approach
+   - attract: transformation, misconception, belief_shift, hidden_truth
+   - nurture: step_by_step, faq_answer, process_breakdown, quick_win
+   - convert: client_fix, case_study, objection_reframe, client_quote
+3. Normalize the format to snake_case as shown above (e.g., "FAQ Answer" -> "faq_answer").
+4. Generate up to 3 content creator tags that describe the template's approach
 
 Return your analysis as JSON:
 {
@@ -283,10 +284,11 @@ Author: {template.get('author', 'Unknown')}
 Your task:
 1. Determine the primary funnel stage: attract, nurture, or convert
 2. Identify the template format from these options:
-   - attract: belief_shift, origin_story, industry_myths
-   - nurture: framework, step_by_step, how_i_how_to  
-   - convert: objection_post, result_breakdown, client_success_story
-3. Generate up to 3 content creator tags that describe the template's approach
+   - attract: transformation, misconception, belief_shift, hidden_truth
+   - nurture: step_by_step, faq_answer, process_breakdown, quick_win
+   - convert: client_fix, case_study, objection_reframe, client_quote
+3. Normalize the format to snake_case as shown above (e.g., "FAQ Answer" -> "faq_answer").
+4. Generate up to 3 content creator tags that describe the template's approach
 
 Return your analysis as JSON:
 {

@@ -264,9 +264,12 @@ class ChatStore:
             "categorization_confidence": min(max(categorization_confidence, 0.0), 1.0),  # Clamp between 0 and 1
             "custom_category": category not in ['attract', 'nurture', 'convert'],
             "custom_format": format not in [
-                'belief_shift', 'origin_story', 'industry_myths',
-                'framework', 'step_by_step', 'how_i_how_to',
-                'objection_post', 'result_breakdown', 'client_success_story'
+                # Attract
+                'transformation', 'misconception', 'belief_shift', 'hidden_truth',
+                # Nurture
+                'step_by_step', 'faq_answer', 'process_breakdown', 'quick_win',
+                # Convert
+                'client_fix', 'case_study', 'objection_reframe', 'client_quote'
             ]
         }
         
@@ -600,6 +603,46 @@ class Coordinator:
         else:
             print("📋 Format Agent: No template found")
 
+        # Normalize category/format display names from human-friendly labels
+        def _normalize_label(text: Optional[str]) -> Optional[str]:
+            if not text:
+                return text
+            t = text.strip().lower()
+            replacements = {
+                "attract": "attract",
+                "nurture": "nurture",
+                "convert": "convert",
+                # Attract
+                "transformation": "transformation",
+                "misconception": "misconception",
+                "belief shift": "belief_shift",
+                "belief_shift": "belief_shift",
+                "hidden truth": "hidden_truth",
+                "hidden_truth": "hidden_truth",
+                # Nurture
+                "step by step": "step_by_step",
+                "step_by_step": "step_by_step",
+                "faq answer": "faq_answer",
+                "faq_answer": "faq_answer",
+                "process breakdown": "process_breakdown",
+                "process_breakdown": "process_breakdown",
+                "quick win": "quick_win",
+                "quick_win": "quick_win",
+                # Convert
+                "client fix": "client_fix",
+                "client_fix": "client_fix",
+                "case study": "case_study",
+                "case_study": "case_study",
+                "objection reframe": "objection_reframe",
+                "objection_reframe": "objection_reframe",
+                "client quote": "client_quote",
+                "client_quote": "client_quote",
+            }
+            return replacements.get(t, t.replace(" ", "_"))
+
+        category = _normalize_label(category)
+        format = _normalize_label(format)
+
         # Prepare input
         input_text = (
             "Review and transform this draft into a LinkedIn-ready post following the required format.\n\n"
@@ -662,6 +705,46 @@ class Coordinator:
         """Call Format Agent with user feedback"""
         # Always use the prompt marked as current in system_prompts (is_current = true)
         instructions = self.store.get_system_prompt("Format Agent") or ""
+
+        # Normalize labels
+        def _normalize_label(text: Optional[str]) -> Optional[str]:
+            if not text:
+                return text
+            t = text.strip().lower()
+            replacements = {
+                "attract": "attract",
+                "nurture": "nurture",
+                "convert": "convert",
+                # Attract
+                "transformation": "transformation",
+                "misconception": "misconception",
+                "belief shift": "belief_shift",
+                "belief_shift": "belief_shift",
+                "hidden truth": "hidden_truth",
+                "hidden_truth": "hidden_truth",
+                # Nurture
+                "step by step": "step_by_step",
+                "step_by_step": "step_by_step",
+                "faq answer": "faq_answer",
+                "faq_answer": "faq_answer",
+                "process breakdown": "process_breakdown",
+                "process_breakdown": "process_breakdown",
+                "quick win": "quick_win",
+                "quick_win": "quick_win",
+                # Convert
+                "client fix": "client_fix",
+                "client_fix": "client_fix",
+                "case study": "case_study",
+                "case_study": "case_study",
+                "objection reframe": "objection_reframe",
+                "objection_reframe": "objection_reframe",
+                "client quote": "client_quote",
+                "client_quote": "client_quote",
+            }
+            return replacements.get(t, t.replace(" ", "_"))
+
+        category = _normalize_label(category)
+        format = _normalize_label(format)
 
         # Resolve template
         template_text = None

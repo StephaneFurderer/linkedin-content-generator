@@ -54,3 +54,9 @@ standalone-chat-ui/out/
 # Documentation
 README.md
 *.md
+
+.env
+.env.backup
+
+.env
+.env.backup
