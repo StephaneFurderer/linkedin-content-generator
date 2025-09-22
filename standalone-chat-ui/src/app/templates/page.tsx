@@ -318,11 +318,11 @@ export default function TemplatesPage() {
                         const val = e.target.value;
                         if (val === 'custom') {
                           setAuthorMode('custom');
-                          setFormData({...formData, author: ''});
+                          setFormData(prev => ({ ...prev, author: '' }));
                         } else {
                           setAuthorMode('select');
                           setAuthorSelected(val);
-                          setFormData({...formData, author: val});
+                          setFormData(prev => ({ ...prev, author: val }));
                         }
                       }}
                       className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -335,7 +335,7 @@ export default function TemplatesPage() {
                     <input
                       type="text"
                       value={formData.author}
-                      onChange={(e) => setFormData({...formData, author: e.target.value})}
+                      onChange={(e) => setFormData(prev => ({ ...prev, author: e.target.value }))}
                       placeholder="Enter new author"
                       disabled={authorMode !== 'custom'}
                       className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -346,7 +346,7 @@ export default function TemplatesPage() {
                   <input
                     type="text"
                     value={formData.author}
-                    onChange={(e) => setFormData({...formData, author: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({ ...prev, author: e.target.value }))}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 )}
