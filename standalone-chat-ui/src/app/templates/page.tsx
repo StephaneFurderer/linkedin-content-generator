@@ -30,19 +30,22 @@ const CATEGORIES = [
 
 const FORMATS = {
   attract: [
+    { value: 'transformation', label: 'Transformation' },
+    { value: 'misconception', label: 'Misconception' },
     { value: 'belief_shift', label: 'Belief Shift' },
-    { value: 'origin_story', label: 'Origin Story' },
-    { value: 'industry_myths', label: 'Industry Myths' }
+    { value: 'hidden_truth', label: 'Hidden Truth' }
   ],
   nurture: [
-    { value: 'framework', label: 'Framework' },
     { value: 'step_by_step', label: 'Step-by-step' },
-    { value: 'how_i_how_to', label: 'How I / How to' }
+    { value: 'faq_answer', label: 'FAQ Answer' },
+    { value: 'process_breakdown', label: 'Process Breakdown' },
+    { value: 'quick_win', label: 'Quick Win' }
   ],
   convert: [
-    { value: 'objection_post', label: 'Objection Post' },
-    { value: 'result_breakdown', label: 'Result Breakdown' },
-    { value: 'client_success_story', label: 'Client Success Story' }
+    { value: 'client_fix', label: 'Client Fix' },
+    { value: 'case_study', label: 'Case Study' },
+    { value: 'objection_reframe', label: 'Objection Reframe' },
+    { value: 'client_quote', label: 'Client Quote' }
   ]
 };
 
@@ -59,7 +62,7 @@ export default function TemplatesPage() {
     title: '',
     content: '',
     category: 'attract',
-    format: 'belief_shift',
+    format: 'transformation',
     author: '',
     linkedin_url: '',
     tags: '',
@@ -211,7 +214,7 @@ export default function TemplatesPage() {
       title: '',
       content: '',
       category: 'attract',
-      format: 'belief_shift',
+      format: 'transformation',
       author: '',
       linkedin_url: '',
       tags: '',
