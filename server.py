@@ -637,52 +637,43 @@ if TELEGRAM_BOT_TOKEN and os.getenv("ENVIRONMENT") == "production":
     
     @bot.message_handler(commands=['start', 'help'])
     def send_welcome(message):
-        welcome_text = """
-🤖 **LinkedIn Content Generator Bot**
+        welcome_text = """🤖 LinkedIn Content Generator Bot
 
-**Commands:**
+Commands:
 /ideas - 🎨 Generate 12 content ideas from Readwise (NEW!)
 /select - 📝 Generate full article from selected idea
 /create_post - Generate a LinkedIn post (simplified)
 /post - Generate a LinkedIn post (advanced YAML)
 
-**🎨 12-Pillar Workflow (Recommended for Readwise):**
+🎨 12-Pillar Workflow (Recommended for Readwise):
 
 1. Generate 12 ideas:
-```
 /ideas https://read.readwise.io/new/read/01abc123...
-```
 
 2. Select an idea to expand:
-```
 /select <conversation_id> 3
-```
 
 This gives you 12 strategic content angles (Attract, Nurture, Convert) to choose from!
 
-**Simple Direct Post:**
+Simple Direct Post:
 Send /create_post followed by URL and your notes:
 
-```
 /create_post https://example.com/article
 This is amazing! I learned that...
-```
 
-*Target audience: Insurance leaders, C-level executives, data leaders, financial services*
+Target audience: Insurance leaders, C-level executives, data leaders, financial services
 
-**Advanced YAML:**
+Advanced YAML:
 Send /post followed by your YAML input:
 
-```
 /post
 - url: https://example.com/article
 - icp: target audience
-- dream: desired outcome  
+- dream: desired outcome
 - category: attract|nurture|convert
 - format: belief_shift|framework|how_to|etc
-```
-        """
-        bot.reply_to(message, welcome_text, parse_mode='Markdown')
+"""
+        bot.reply_to(message, welcome_text)
     
     @bot.message_handler(commands=['ideas'])
     def handle_ideas_command(message):

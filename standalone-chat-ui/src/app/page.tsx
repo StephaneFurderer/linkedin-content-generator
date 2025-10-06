@@ -2096,13 +2096,19 @@ export default function HomePage() {
                 (() => {
                   // Extract ideas from conversation state or messages
                   const state = selectedConversation.state || {}
-                  const ideas = state.ideas as Array<{
-                    pillar_category: string
-                    pillar_type: string
-                    content_idea: string
-                    justification: string
-                    core_source_concept: string
-                  }> | undefined
+                  const ideasData = state.ideas as {
+                    source_title?: string
+                    source_summary?: string
+                    ideas?: Array<{
+                      pillar_category: string
+                      pillar_type: string
+                      content_idea: string
+                      justification: string
+                      core_source_concept: string
+                    }>
+                  } | undefined
+                  
+                  const ideas = ideasData?.ideas
                   
                   if (!ideas || ideas.length === 0) {
                     return (
@@ -2118,6 +2124,18 @@ export default function HomePage() {
                   
                   return (
                     <div className="flex-1 overflow-y-auto p-4">
+                      {ideasData?.source_title && (
+                        <div className="mb-4 pb-4 border-b border-border">
+                          <h2 className="text-lg font-semibold text-card-foreground mb-1">
+                            📖 {ideasData.source_title}
+                          </h2>
+                          {ideasData?.source_summary && (
+                            <p className="text-sm text-muted-foreground">
+                              {ideasData.source_summary}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {ideas.map((idea, index) => (
                           <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer group">
