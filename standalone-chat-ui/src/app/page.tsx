@@ -137,6 +137,9 @@ export default function HomePage() {
   const [editingPostTitle, setEditingPostTitle] = useState('')
   const [isUpdatingPost, setIsUpdatingPost] = useState(false)
   
+  // Idea generation state
+  const [generatingIdeaIndex, setGeneratingIdeaIndex] = useState<number | null>(null)
+  
   // Background job tracking state
   const [activeJobs, setActiveJobs] = useState<Array<{
     jobId: string
@@ -705,6 +708,48 @@ export default function HomePage() {
       }
     } finally {
       setIsSubmittingFeedback(false)
+    }
+  }
+
+  // Handle generating article from selected idea
+  const handleGenerateFromIdea = async (ideaIndex: number) => {
+    if (!selectedConversation) {
+      alert('No conversation selected')
+      return
+    }
+
+    setGeneratingIdeaIndex(ideaIndex)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/coordinator/select-idea`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation_id: selectedConversation.id,
+          selected_idea_index: ideaIndex,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate article: ${response.status} ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('Article generated successfully:', result)
+
+      // Refresh the conversation to show the new article
+      await handleConversationSelect(selectedConversation)
+      
+      // Switch to content tab to see the result
+      setPanel2ActiveTab('content')
+      
+      alert('✅ Article generated! Check the content tab and writing panel.')
+    } catch (err) {
+      console.error('Error generating article:', err)
+      alert(`Failed to generate article: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setGeneratingIdeaIndex(null)
     }
   }
 
@@ -2175,12 +2220,10 @@ export default function HomePage() {
                                 <Button 
                                   size="sm" 
                                   className="w-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={async () => {
-                                    // TODO: Call API to generate article from this idea
-                                    alert(`Generating article from idea ${index + 1}...`)
-                                  }}
+                                  onClick={() => handleGenerateFromIdea(index)}
+                                  disabled={generatingIdeaIndex !== null}
                                 >
-                                  📄 Generate Article
+                                  {generatingIdeaIndex === index ? '⏳ Generating...' : '📄 Generate Article'}
                                 </Button>
                               </div>
                             </CardContent>
