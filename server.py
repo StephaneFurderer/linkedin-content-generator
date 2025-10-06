@@ -641,10 +641,26 @@ if TELEGRAM_BOT_TOKEN and os.getenv("ENVIRONMENT") == "production":
 🤖 **LinkedIn Content Generator Bot**
 
 **Commands:**
+/ideas - 🎨 Generate 12 content ideas from Readwise (NEW!)
+/select - 📝 Generate full article from selected idea
 /create_post - Generate a LinkedIn post (simplified)
 /post - Generate a LinkedIn post (advanced YAML)
 
-**Simple Usage (Recommended):**
+**🎨 12-Pillar Workflow (Recommended for Readwise):**
+
+1. Generate 12 ideas:
+```
+/ideas https://read.readwise.io/new/read/01abc123...
+```
+
+2. Select an idea to expand:
+```
+/select <conversation_id> 3
+```
+
+This gives you 12 strategic content angles (Attract, Nurture, Convert) to choose from!
+
+**Simple Direct Post:**
 Send /create_post followed by URL and your notes:
 
 ```
@@ -654,22 +670,16 @@ This is amazing! I learned that...
 
 *Target audience: Insurance leaders, C-level executives, data leaders, financial services*
 
-**Advanced Usage:**
+**Advanced YAML:**
 Send /post followed by your YAML input:
 
 ```
 /post
-- url: https://read.readwise.io/new/read/...
+- url: https://example.com/article
 - icp: target audience
 - dream: desired outcome  
 - category: attract|nurture|convert
 - format: belief_shift|framework|how_to|etc
-```
-
-**Example:**
-```
-/create_post https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
-This article shows how insurance leaders can get real-time loss updates. Key insight: automation reduces response time by 70%.
 ```
         """
         bot.reply_to(message, welcome_text, parse_mode='Markdown')
@@ -683,7 +693,7 @@ This article shows how insurance leaders can get real-time loss updates. Key ins
             
             # Check if it's a Readwise URL
             import re
-            readwise_pattern = r'https?://(?:www\.)?read(?:wise)?\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
+            readwise_pattern = r'https?://(?:www\.)?(?:read\.)?readwise\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
             readwise_match = re.search(readwise_pattern, text)
             
             if not readwise_match:
@@ -791,7 +801,7 @@ This article shows how insurance leaders can get real-time loss updates. Key ins
             
             # Check if it's a Readwise URL - use new workflow
             import re
-            readwise_pattern = r'https?://(?:www\.)?read(?:wise)?\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
+            readwise_pattern = r'https?://(?:www\.)?(?:read\.)?readwise\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
             if re.search(readwise_pattern, text):
                 bot.reply_to(message, "💡 Detected Readwise URL! Use /ideas command for the 12-pillar workflow:\n\n/ideas " + text)
                 return
