@@ -447,6 +447,212 @@ class Coordinator:
             "final_output": format_result,
             "conversation_id": conversation_id
         }
+    
+    def generate_ideas(self, readwise_url: str, conversation_id: str) -> Dict[str, Any]:
+        """
+        NEW: Generate 12 content ideas from a Readwise article
+        
+        Args:
+            readwise_url: URL to Readwise article
+            conversation_id: Conversation ID to track state
+            
+        Returns:
+            Dict with ideas (ContentIdeaSet as dict) and metadata
+        """
+        from pydantic import BaseModel, Field
+        from typing import List
+        
+        # Define Pydantic models for structured output
+        class ContentIdea(BaseModel):
+            pillar_category: str = Field(description="Attract/Growth, Nurture/Authority, or Convert/Lead Gen")
+            pillar_type: str = Field(description="The numbered type (e.g., '1. Transformation')")
+            content_idea: str = Field(description="The content idea/title for this piece")
+            justification: str = Field(description="Why this angle works")
+            core_source_concept: str = Field(description="The key concept from source")
+        
+        class ContentIdeaSet(BaseModel):
+            source_title: str
+            source_summary: str
+            ideas: List[ContentIdea] = Field(min_length=12, max_length=12)
+        
+        print(f"🔍 Generating 12 ideas from: {readwise_url}")
+        
+        # Fetch Readwise content
+        readwise_content = self.store.retrieve_readwise_content(readwise_url)
+        if not readwise_content.get("success"):
+            raise ValueError(f"Failed to fetch Readwise content: {readwise_content.get('error')}")
+        
+        # Add user message with URL
+        self.store.add_message(conversation_id, "user", f"Generate content ideas from: {readwise_url}")
+        
+        # Update state
+        self.store.update_conversation_state(conversation_id, {
+            "status": "generating_ideas",
+            "readwise_url": readwise_url,
+            "readwise_content": {
+                "title": readwise_content["title"],
+                "url": readwise_content["url"],
+                "content_length": readwise_content["content_length"]
+            }
+        })
+        
+        # Build prompt for Strategist
+        strategist_prompt = self.store.get_system_prompt("Strategist")
+        if not strategist_prompt:
+            raise RuntimeError("Strategist agent not found in system_prompts")
+        
+        user_prompt = f"""
+# SOURCE ARTICLE
+
+**Title:** {readwise_content['title']}
+**Author:** {readwise_content.get('author', 'Unknown')}
+**URL:** {readwise_content['url']}
+
+**Content:**
+{readwise_content['content']}
+
+---
+
+Generate 12 distinct content ideas using the framework above. Each idea should be grounded in specific concepts from this article.
+"""
+        
+        # Call Strategist with structured outputs
+        print("🤖 Calling Strategist agent...")
+        response = self.client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": strategist_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format=ContentIdeaSet,
+            temperature=0.8,
+        )
+        
+        ideas = response.choices[0].message.parsed
+        ideas_dict = ideas.model_dump()
+        
+        # Store as message
+        self.store.add_message(
+            conversation_id,
+            "assistant",
+            f"Generated 12 content ideas from: {ideas.source_title}",
+            agent_name="Strategist",
+            metadata={
+                "model": "gpt-4o-mini",
+                "system_prompt_version": self.store.get_current_prompt_version("Strategist"),
+                "ideas": ideas_dict
+            }
+        )
+        
+        # Update state with ideas
+        self.store.update_conversation_state(conversation_id, {
+            "status": "ideas_generated",
+            "ideas": ideas_dict,
+            "awaiting_selection": True
+        })
+        
+        print(f"✅ Generated {len(ideas.ideas)} content ideas")
+        
+        return {
+            "status": "ideas_generated",
+            "conversation_id": conversation_id,
+            "ideas": ideas_dict
+        }
+    
+    def generate_from_idea(
+        self,
+        conversation_id: str,
+        selected_idea_index: int,
+        template_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        NEW: Generate full LinkedIn article from a selected idea
+        
+        Args:
+            conversation_id: Conversation ID
+            selected_idea_index: Index of selected idea (0-11)
+            template_id: Optional template ID to guide formatting
+            
+        Returns:
+            Dict with generated article and metadata
+        """
+        print(f"📝 Generating article from idea #{selected_idea_index + 1}")
+        
+        # Get state
+        state = self.store.get_conversation_state(conversation_id)
+        if not state.get("ideas"):
+            raise ValueError("No ideas found in conversation state")
+        
+        ideas_data = state["ideas"]
+        if selected_idea_index < 0 or selected_idea_index >= len(ideas_data["ideas"]):
+            raise ValueError(f"Invalid idea index: {selected_idea_index}")
+        
+        selected_idea = ideas_data["ideas"][selected_idea_index]
+        readwise_content_meta = state.get("readwise_content", {})
+        
+        # Fetch full Readwise content again for article generation
+        readwise_url = state.get("readwise_url")
+        if readwise_url:
+            readwise_content = self.store.retrieve_readwise_content(readwise_url)
+        else:
+            readwise_content = {"content": "", "title": readwise_content_meta.get("title", "")}
+        
+        # Add user selection message
+        self.store.add_message(
+            conversation_id,
+            "user",
+            f"Generate article from idea #{selected_idea_index + 1}: {selected_idea['content_idea']}"
+        )
+        
+        # Update state
+        self.store.update_conversation_state(conversation_id, {
+            "status": "generating_article",
+            "selected_idea_index": selected_idea_index,
+            "selected_idea": selected_idea
+        })
+        
+        # Determine category and format from selected idea
+        pillar_category = selected_idea["pillar_category"]
+        pillar_type = selected_idea["pillar_type"]
+        
+        # Map to category/format for template selection
+        category = None
+        if "Attract" in pillar_category:
+            category = "attract"
+        elif "Nurture" in pillar_category:
+            category = "nurture"
+        elif "Convert" in pillar_category:
+            category = "convert"
+        
+        # Extract format from pillar_type (e.g., "1. Transformation" → "transformation")
+        format_name = pillar_type.split(".", 1)[1].strip().lower().replace(" ", "_") if "." in pillar_type else None
+        
+        # Call Format Agent to generate full article
+        print(f"🎨 Calling Format Agent with idea...")
+        article = self._call_format_agent_from_idea(
+            conversation_id,
+            selected_idea,
+            readwise_content.get("content", ""),
+            template_id=template_id,
+            category=category,
+            format=format_name
+        )
+        
+        # Update state
+        self.store.update_conversation_state(conversation_id, {
+            "status": "waiting_for_approval",
+            "final_output": article,
+            "waiting_for_user": True
+        })
+        
+        print("✅ Article generated - waiting for user approval")
+        
+        return {
+            "status": "waiting_for_approval",
+            "conversation_id": conversation_id,
+            "final_output": article,
+            "selected_idea": selected_idea
+        }
 
     def continue_after_user_input(self, conversation_id: str, user_response: str) -> Dict[str, Any]:
         """Continue conversation after user provides input"""
@@ -796,6 +1002,130 @@ class Coordinator:
             },
         )
 
+        return content
+
+    def _call_format_agent_from_idea(
+        self,
+        conversation_id: str,
+        selected_idea: Dict[str, str],
+        source_content: str,
+        template_id: Optional[str] = None,
+        category: Optional[str] = None,
+        format: Optional[str] = None,
+    ) -> str:
+        """
+        NEW: Call Format Agent to generate full article from a selected idea
+        
+        Args:
+            selected_idea: Dict with content_idea, justification, core_source_concept, etc.
+            source_content: Full source article content
+            template_id: Optional template ID
+            category: Content category (attract/nurture/convert)
+            format: Content format type
+            
+        Returns:
+            Generated LinkedIn article
+        """
+        print(f"🎯 Format Agent (from idea): {selected_idea['pillar_type']}")
+        
+        # Get Format Agent prompt
+        instructions = self.store.get_system_prompt("Format Agent") or ""
+        print(f"📝 Format Agent: Got instructions ({len(instructions)} chars)")
+        
+        # Resolve template
+        template_text = None
+        chosen_template: Optional[Dict[str, Any]] = None
+        if template_id:
+            chosen_template = self.store.get_template_by_id(template_id)
+            print(f"📋 Format Agent: Using template by ID: {template_id}")
+        elif category and format:
+            chosen_template = self.store.get_latest_template_by_category_format(category, format)
+            print(f"📋 Format Agent: Using template by category/format: {category}/{format}")
+        
+        if chosen_template and chosen_template.get("content"):
+            template_text = chosen_template["content"]
+            print(f"📋 Format Agent: Template loaded ({len(template_text)} chars)")
+        else:
+            print("📋 Format Agent: No template found")
+        
+        # Build rich input for Format Agent
+        input_text = f"""
+Create a complete, engaging LinkedIn post based on this content idea:
+
+# SELECTED IDEA
+
+**Category:** {selected_idea['pillar_category']}
+**Type:** {selected_idea['pillar_type']}
+**Content Idea:** {selected_idea['content_idea']}
+
+**Why this angle works:**
+{selected_idea['justification']}
+
+**Core concept from source:**
+{selected_idea['core_source_concept']}
+
+# SOURCE MATERIAL
+
+{source_content[:8000]}  # Limit to 8000 chars to avoid token limits
+
+# TEMPLATE TO FOLLOW
+
+{template_text if template_text else "Use standard LinkedIn format with proper spacing, short lines, and engaging structure."}
+
+# YOUR TASK
+
+Write a complete, engaging LinkedIn post that:
+1. Brings this content idea to life
+2. Stays grounded in the source material
+3. Follows the template style/structure
+4. Is ready to publish (no placeholders or TODOs)
+5. Matches the {selected_idea['pillar_type']} format expectations
+"""
+        
+        print(f"📤 Format Agent: Sending to gpt-5-mini ({len(input_text)} chars)")
+        
+        # Use gpt-5-mini with Responses API - higher effort for full article generation
+        response = self.client.responses.create(
+            model="gpt-5-mini",
+            instructions=instructions,
+            input=input_text,
+            reasoning={"effort": "high"},  # Higher effort since creating full article
+            text={"format": {"type": "text"}, "verbosity": "high"},
+        )
+        
+        print("📥 Format Agent: Got response from gpt-5-mini")
+        
+        # Extract content
+        content = getattr(response, "output_text", "") or ""
+        if not content:
+            for item in getattr(response, "output", []) or []:
+                for block in getattr(item, "content", []) or []:
+                    if getattr(block, "type", "") in ("output_text", "input_text"):
+                        text_val = getattr(block, "text", "") or ""
+                        if text_val:
+                            content = text_val
+                            break
+                if content:
+                    break
+        
+        # Store message
+        version_used = self.store.get_current_prompt_version("Format Agent") or None
+        self.store.add_message(
+            conversation_id,
+            "assistant",
+            content,
+            agent_name="Format Agent",
+            metadata={
+                "model": "gpt-5-mini",
+                "system_prompt_version": version_used,
+                "template_id": (chosen_template or {}).get("id") if chosen_template else None,
+                "template_category": category,
+                "template_format": format,
+                "selected_idea": selected_idea,
+                "generation_mode": "from_idea"  # Flag to indicate new workflow
+            },
+        )
+        
         return content
 
     def _is_satisfaction_response(self, response: str) -> bool:

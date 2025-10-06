@@ -9,28 +9,28 @@ load_dotenv(find_dotenv(usecwd=True), override=False)
 
 # Readwise integration classes
 class ReadwiseDocument(BaseModel):
-    id: str
-    url: str
-    title: str
-    author: str
-    source: str
-    category: str
-    location: str
-    tags: List[str]
-    site_name: str
-    word_count: int
-    created_at: str
-    updated_at: str
-    notes: str
-    summary: str
-    image_url: str
-    content: str
+    id: str = ""
+    url: str = ""
+    title: str = ""
+    author: str = ""
+    source: str = ""
+    category: str = ""
+    location: str = ""
+    tags: List[str] = []
+    site_name: str = ""
+    word_count: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+    notes: str = ""
+    summary: str = ""
+    image_url: str = ""
+    content: str = ""
     html_content: str = ""
-    reading_progress: float
+    reading_progress: float = 0.0
     first_opened_at: Optional[str] = None
     last_opened_at: Optional[str] = None
-    saved_at: str
-    last_moved_at: str
+    saved_at: str = ""
+    last_moved_at: str = ""
 
 class ReadwiseClient:
     def __init__(self, api_token: Optional[str] = None):
@@ -109,28 +109,28 @@ class ReadwiseClient:
         content = content_raw if content_raw is not None else ""
 
         return ReadwiseDocument(
-            id=doc_data.get("id", ""),
-            url=doc_data.get("url", ""),
-            title=doc_data.get("title", ""),
-            author=doc_data.get("author", ""),
-            source=doc_data.get("source", ""),
-            category=doc_data.get("category", ""),
-            location=doc_data.get("location", ""),
+            id=doc_data.get("id") or "",
+            url=doc_data.get("url") or "",
+            title=doc_data.get("title") or "",
+            author=doc_data.get("author") or "",
+            source=doc_data.get("source") or "",
+            category=doc_data.get("category") or "",
+            location=doc_data.get("location") or "",
             tags=tags,
-            site_name=doc_data.get("site_name", ""),
-            word_count=doc_data.get("word_count", 0),
-            created_at=doc_data.get("created_at", ""),
-            updated_at=doc_data.get("updated_at", ""),
-            notes=doc_data.get("notes", ""),
-            summary=doc_data.get("summary", ""),
-            image_url=doc_data.get("image_url", ""),
+            site_name=doc_data.get("site_name") or "",
+            word_count=doc_data.get("word_count") or 0,
+            created_at=doc_data.get("created_at") or "",
+            updated_at=doc_data.get("updated_at") or "",
+            notes=doc_data.get("notes") or "",
+            summary=doc_data.get("summary") or "",
+            image_url=doc_data.get("image_url") or "",
             content=content,
-            html_content=doc_data.get("html_content", ""),
-            reading_progress=doc_data.get("reading_progress", 0.0),
+            html_content=doc_data.get("html_content") or "",
+            reading_progress=doc_data.get("reading_progress") or 0.0,
             first_opened_at=doc_data.get("first_opened_at"),
             last_opened_at=doc_data.get("last_opened_at"),
-            saved_at=doc_data.get("saved_at", ""),
-            last_moved_at=doc_data.get("last_moved_at", "")
+            saved_at=doc_data.get("saved_at") or "",
+            last_moved_at=doc_data.get("last_moved_at") or ""
         )
 
 if __name__ == "__main__":

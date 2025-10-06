@@ -80,6 +80,16 @@ class TemplateRequest(BaseModel):
     linkedin_url: Optional[str] = None
     tags: Optional[List[str]] = None
     screenshot_url: Optional[str] = None
+
+class GenerateIdeasRequest(BaseModel):
+    readwise_url: str
+    conversation_title: Optional[str] = None
+
+class SelectIdeaRequest(BaseModel):
+    conversation_id: str
+    selected_idea_index: int
+    template_id: Optional[str] = None
+
 def _normalize_and_clamp(category: Optional[str], fmt: Optional[str], tags: Optional[List[str]] = None) -> Tuple[str, str, List[str]]:
     """Normalize and clamp AI categorization to predefined taxonomy.
     Ensures tags never override the canonical format/category.
@@ -158,6 +168,41 @@ def continue_(req: ContinueRequest) -> Dict[str, Any]:
     try:
         result = coordinator.continue_after_user_input(req.conversation_id, req.user_response)
         return {"conversation_id": req.conversation_id, **result}
+    except Exception as e:  # pylint: disable=broad-except
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/coordinator/generate-ideas")
+def generate_ideas(req: GenerateIdeasRequest) -> Dict[str, Any]:
+    """NEW: Generate 12 content ideas from a Readwise article"""
+    try:
+        # Create conversation
+        conv = store.create_conversation(title=req.conversation_title or f"Ideas from Readwise")
+        
+        # Generate ideas
+        result = coordinator.generate_ideas(req.readwise_url, conv["id"])
+        
+        return {
+            "conversation_id": conv["id"],
+            **result
+        }
+    except Exception as e:  # pylint: disable=broad-except
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/coordinator/select-idea")
+def select_idea(req: SelectIdeaRequest) -> Dict[str, Any]:
+    """NEW: Generate full article from a selected idea"""
+    try:
+        result = coordinator.generate_from_idea(
+            req.conversation_id,
+            req.selected_idea_index,
+            template_id=req.template_id
+        )
+        return {
+            "conversation_id": req.conversation_id,
+            **result
+        }
     except Exception as e:  # pylint: disable=broad-except
         raise HTTPException(status_code=500, detail=str(e))
 
