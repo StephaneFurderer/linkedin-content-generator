@@ -674,6 +674,110 @@ This article shows how insurance leaders can get real-time loss updates. Key ins
         """
         bot.reply_to(message, welcome_text, parse_mode='Markdown')
     
+    @bot.message_handler(commands=['ideas'])
+    def handle_ideas_command(message):
+        """NEW: Generate 12 content ideas from a Readwise URL"""
+        try:
+            # Extract URL from message
+            text = message.text.replace('/ideas', '').strip()
+            
+            # Check if it's a Readwise URL
+            import re
+            readwise_pattern = r'https?://(?:www\.)?read(?:wise)?\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
+            readwise_match = re.search(readwise_pattern, text)
+            
+            if not readwise_match:
+                bot.reply_to(message, "❌ Please provide a Readwise URL after /ideas command\n\nExample: /ideas https://read.readwise.io/new/read/01abc123...")
+                return
+            
+            readwise_url = readwise_match.group(0)
+            
+            # Send processing message
+            processing_msg = bot.reply_to(message, "🎨 Generating 12 content ideas from your article...")
+            
+            # Create conversation
+            conv = store.create_conversation(title=f"12 Ideas from Readwise")
+            
+            # Generate 12 ideas using new workflow
+            result = coordinator.generate_ideas(readwise_url, conv["id"])
+            
+            if result.get("ideas"):
+                ideas = result["ideas"]["ideas"]
+                
+                # Format ideas message
+                ideas_text = f"✅ **Generated 12 Content Ideas!**\n\n"
+                ideas_text += f"📖 Source: {result['ideas']['source_title']}\n\n"
+                ideas_text += "**Select an idea to expand into a full post:**\n\n"
+                
+                for i, idea in enumerate(ideas, 1):
+                    ideas_text += f"**{i}. {idea['pillar_type']}** ({idea['pillar_category']})\n"
+                    ideas_text += f"💡 {idea['content_idea'][:100]}...\n\n"
+                
+                ideas_text += f"\n🔗 View all ideas in the UI:\nhttps://linkedin-content-generator-sand.vercel.app (Conversation ID: {conv['id'][:8]}...)\n"
+                ideas_text += f"\n💬 To generate a post from idea #3, reply with: /select {conv['id']} 2"
+                
+                # Send ideas
+                if len(ideas_text) > 4000:
+                    chunks = [ideas_text[i:i+4000] for i in range(0, len(ideas_text), 4000)]
+                    for i, chunk in enumerate(chunks):
+                        if i == 0:
+                            bot.edit_message_text(chunk, chat_id=message.chat.id, message_id=processing_msg.message_id)
+                        else:
+                            bot.send_message(message.chat.id, chunk)
+                else:
+                    bot.edit_message_text(ideas_text, chat_id=message.chat.id, message_id=processing_msg.message_id)
+            else:
+                bot.edit_message_text("❌ Failed to generate ideas. Please try again.", chat_id=message.chat.id, message_id=processing_msg.message_id)
+                
+        except Exception as e:
+            bot.reply_to(message, f"❌ Error: {str(e)}")
+    
+    @bot.message_handler(commands=['select'])
+    def handle_select_command(message):
+        """Select an idea and generate full article"""
+        try:
+            # Parse: /select <conversation_id> <idea_index>
+            parts = message.text.replace('/select', '').strip().split()
+            
+            if len(parts) < 2:
+                bot.reply_to(message, "❌ Usage: /select <conversation_id> <idea_number>\n\nExample: /select abc123 3")
+                return
+            
+            conv_id = parts[0]
+            idea_index = int(parts[1]) - 1  # Convert to 0-indexed
+            
+            # Send processing message
+            processing_msg = bot.reply_to(message, f"📝 Generating full article from idea #{idea_index + 1}...")
+            
+            # Generate article from selected idea
+            result = coordinator.generate_from_idea(conv_id, idea_index)
+            
+            if result.get("final_output"):
+                output = result["final_output"]
+                
+                # Add metadata
+                selected_idea = result.get("selected_idea", {})
+                header = f"✅ **Generated from Idea #{idea_index + 1}**\n"
+                header += f"📌 {selected_idea.get('pillar_type', 'N/A')}\n\n"
+                
+                full_output = header + output
+                
+                # Send result
+                if len(full_output) > 4000:
+                    chunks = [full_output[i:i+4000] for i in range(0, len(full_output), 4000)]
+                    for i, chunk in enumerate(chunks):
+                        if i == 0:
+                            bot.edit_message_text(chunk, chat_id=message.chat.id, message_id=processing_msg.message_id)
+                        else:
+                            bot.send_message(message.chat.id, chunk)
+                else:
+                    bot.edit_message_text(full_output, chat_id=message.chat.id, message_id=processing_msg.message_id)
+            else:
+                bot.edit_message_text("❌ Failed to generate article. Please try again.", chat_id=message.chat.id, message_id=processing_msg.message_id)
+                
+        except Exception as e:
+            bot.reply_to(message, f"❌ Error: {str(e)}")
+
     @bot.message_handler(commands=['create_post'])
     def handle_create_post_command(message):
         """Simplified command: just URL + notes, AI picks template"""
@@ -683,6 +787,13 @@ This article shows how insurance leaders can get real-time loss updates. Key ins
             
             if not text:
                 bot.reply_to(message, "❌ Please provide URL and your notes after /create_post command")
+                return
+            
+            # Check if it's a Readwise URL - use new workflow
+            import re
+            readwise_pattern = r'https?://(?:www\.)?read(?:wise)?\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
+            if re.search(readwise_pattern, text):
+                bot.reply_to(message, "💡 Detected Readwise URL! Use /ideas command for the 12-pillar workflow:\n\n/ideas " + text)
                 return
             
             # Send processing message
