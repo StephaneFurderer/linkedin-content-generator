@@ -187,6 +187,9 @@ Send /post followed by your YAML input:
             text = message.text.replace('/ideas', '').strip()
             
             # Check if it's a Readwise URL
+            # Support multiple Readwise URL formats:
+            # - https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
+            # - https://readwise.io/reader/shared/01k8bkesppxvtj13pdx0a1qzav
             readwise_pattern = r'https?://(?:www\.)?(?:read\.)?readwise\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
             readwise_match = re.search(readwise_pattern, text)
             
@@ -369,6 +372,9 @@ Send /post followed by your YAML input:
                 return
             
             # Check if it's a Readwise URL - use new workflow
+            # Support multiple Readwise URL formats:
+            # - https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
+            # - https://readwise.io/reader/shared/01k8bkesppxvtj13pdx0a1qzav
             readwise_pattern = r'https?://(?:www\.)?(?:read\.)?readwise\.io/(?:new/)?(?:read|reader/shared)/[\w-]+'
             if re.search(readwise_pattern, text):
                 bot.reply_to(message, "💡 Detected Readwise URL! Use /ideas command for the 12-pillar workflow:\n\n/ideas " + text)

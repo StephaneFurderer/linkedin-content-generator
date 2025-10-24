@@ -285,13 +285,15 @@ class ChatStore:
     def extract_readwise_url(self, text: str) -> Optional[str]:
         """Extract Readwise URL from text if present."""
         # First try YAML format: - url: <url>
-        yaml_url_pattern = r'-\s*url:\s*(https://read\.readwise\.io/[^\s\]]+)'
+        yaml_url_pattern = r'-\s*url:\s*(https://(?:read\.)?readwise\.io/[^\s\]]+)'
         match = re.search(yaml_url_pattern, text, re.IGNORECASE)
         if match:
             return match.group(1)
         
-        # Fallback to direct URL pattern
-        readwise_pattern = r'https://read\.readwise\.io/[^\s\]]+'
+        # Fallback to direct URL pattern - support both formats:
+        # - https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
+        # - https://readwise.io/reader/shared/01k8bkesppxvtj13pdx0a1qzav
+        readwise_pattern = r'https://(?:read\.)?readwise\.io/[^\s\]]+'
         match = re.search(readwise_pattern, text)
         return match.group(0) if match else None
 
@@ -301,8 +303,10 @@ class ChatStore:
             print(f"📖 Retrieving Readwise content from: {url}")
             
             # Extract document ID from Readwise URL
-            # URL format: https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
-            doc_id_match = re.search(r'/read/([a-zA-Z0-9]+)', url)
+            # Support multiple URL formats:
+            # - https://read.readwise.io/new/read/01k56vzpz8cz9zncnsj2drsqer
+            # - https://readwise.io/reader/shared/01k8bkesppxvtj13pdx0a1qzav
+            doc_id_match = re.search(r'/(?:read|reader/shared)/([a-zA-Z0-9]+)', url)
             if not doc_id_match:
                 raise ValueError(f"Could not extract document ID from URL: {url}")
             
