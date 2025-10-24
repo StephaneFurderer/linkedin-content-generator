@@ -576,83 +576,172 @@ Generate 12 distinct content ideas using the framework above. Each idea should b
         Returns:
             Dict with generated article and metadata
         """
+        import time
+        from typing import Dict, Any
+        
         print(f"📝 Generating article from idea #{selected_idea_index + 1}")
         
-        # Get state
-        state = self.store.get_conversation_state(conversation_id)
-        if not state.get("ideas"):
-            raise ValueError("No ideas found in conversation state")
+        # Add timeout and retry tracking
+        start_time = time.time()
+        max_duration = 300  # 5 minutes max
+        retry_count = 0
+        max_retries = 3
         
-        ideas_data = state["ideas"]
-        if selected_idea_index < 0 or selected_idea_index >= len(ideas_data["ideas"]):
-            raise ValueError(f"Invalid idea index: {selected_idea_index}")
-        
-        selected_idea = ideas_data["ideas"][selected_idea_index]
-        readwise_content_meta = state.get("readwise_content", {})
-        
-        # Fetch full Readwise content again for article generation
-        readwise_url = state.get("readwise_url")
-        if readwise_url:
-            readwise_content = self.store.retrieve_readwise_content(readwise_url)
-        else:
+        try:
+            # Get state with validation
+            state = self.store.get_conversation_state(conversation_id)
+            if not state:
+                raise ValueError(f"Conversation {conversation_id} not found")
+            
+            if not state.get("ideas"):
+                raise ValueError("No ideas found in conversation state. Please generate ideas first using /ideas command.")
+            
+            ideas_data = state["ideas"]
+            if not isinstance(ideas_data, dict) or "ideas" not in ideas_data:
+                raise ValueError("Invalid ideas data structure")
+            
+            ideas_list = ideas_data["ideas"]
+            if not isinstance(ideas_list, list) or len(ideas_list) == 0:
+                raise ValueError("No ideas available in conversation")
+            
+            # Validate idea index with better error message
+            if selected_idea_index < 0:
+                raise ValueError(f"Invalid idea index: {selected_idea_index}. Must be between 1 and {len(ideas_list)}")
+            
+            if selected_idea_index >= len(ideas_list):
+                raise ValueError(f"Invalid idea index: {selected_idea_index}. Only {len(ideas_list)} ideas available (use 1-{len(ideas_list)})")
+            
+            selected_idea = ideas_list[selected_idea_index]
+            if not isinstance(selected_idea, dict):
+                raise ValueError("Selected idea data is corrupted")
+            
+            # Check for required fields in selected idea
+            required_fields = ["content_idea", "pillar_category", "pillar_type"]
+            for field in required_fields:
+                if field not in selected_idea:
+                    raise ValueError(f"Selected idea missing required field: {field}")
+            
+            readwise_content_meta = state.get("readwise_content", {})
+            
+            # Fetch full Readwise content with timeout protection
+            readwise_url = state.get("readwise_url")
             readwise_content = {"content": "", "title": readwise_content_meta.get("title", "")}
-        
-        # Add user selection message
-        self.store.add_message(
-            conversation_id,
-            "user",
-            f"Generate article from idea #{selected_idea_index + 1}: {selected_idea['content_idea']}"
-        )
-        
-        # Update state
-        self.store.update_conversation_state(conversation_id, {
-            "status": "generating_article",
-            "selected_idea_index": selected_idea_index,
-            "selected_idea": selected_idea
-        })
-        
-        # Determine category and format from selected idea
-        pillar_category = selected_idea["pillar_category"]
-        pillar_type = selected_idea["pillar_type"]
-        
-        # Map to category/format for template selection
-        category = None
-        if "Attract" in pillar_category:
-            category = "attract"
-        elif "Nurture" in pillar_category:
-            category = "nurture"
-        elif "Convert" in pillar_category:
-            category = "convert"
-        
-        # Extract format from pillar_type (e.g., "1. Transformation" → "transformation")
-        format_name = pillar_type.split(".", 1)[1].strip().lower().replace(" ", "_") if "." in pillar_type else None
-        
-        # Call Format Agent to generate full article
-        print(f"🎨 Calling Format Agent with idea...")
-        article = self._call_format_agent_from_idea(
-            conversation_id,
-            selected_idea,
-            readwise_content.get("content", ""),
-            template_id=template_id,
-            category=category,
-            format=format_name
-        )
-        
-        # Update state
-        self.store.update_conversation_state(conversation_id, {
-            "status": "waiting_for_approval",
-            "final_output": article,
-            "waiting_for_user": True
-        })
-        
-        print("✅ Article generated - waiting for user approval")
-        
-        return {
-            "status": "waiting_for_approval",
-            "conversation_id": conversation_id,
-            "final_output": article,
-            "selected_idea": selected_idea
-        }
+            
+            if readwise_url and time.time() - start_time < max_duration:
+                try:
+                    print(f"📖 Fetching Readwise content from: {readwise_url}")
+                    readwise_content = self.store.retrieve_readwise_content(readwise_url)
+                    if not readwise_content.get("success"):
+                        print(f"⚠️ Warning: Failed to fetch Readwise content: {readwise_content.get('error')}")
+                        # Continue with empty content rather than failing
+                except Exception as e:
+                    print(f"⚠️ Warning: Error fetching Readwise content: {e}")
+                    # Continue with empty content rather than failing
+            
+            # Add user selection message
+            self.store.add_message(
+                conversation_id,
+                "user",
+                f"Generate article from idea #{selected_idea_index + 1}: {selected_idea['content_idea']}"
+            )
+            
+            # Update state with timeout protection
+            self.store.update_conversation_state(conversation_id, {
+                "status": "generating_article",
+                "selected_idea_index": selected_idea_index,
+                "selected_idea": selected_idea,
+                "generation_start_time": start_time,
+                "retry_count": retry_count
+            })
+            
+            # Determine category and format from selected idea
+            pillar_category = selected_idea["pillar_category"]
+            pillar_type = selected_idea["pillar_type"]
+            
+            # Map to category/format for template selection
+            category = None
+            if "Attract" in pillar_category:
+                category = "attract"
+            elif "Nurture" in pillar_category:
+                category = "nurture"
+            elif "Convert" in pillar_category:
+                category = "convert"
+            
+            # Extract format from pillar_type (e.g., "1. Transformation" → "transformation")
+            format_name = pillar_type.split(".", 1)[1].strip().lower().replace(" ", "_") if "." in pillar_type else None
+            
+            # Check timeout before making API call
+            if time.time() - start_time > max_duration:
+                raise TimeoutError("Generation timeout exceeded")
+            
+            # Call Format Agent to generate full article with retry logic
+            print(f"🎨 Calling Format Agent with idea...")
+            
+            while retry_count < max_retries:
+                try:
+                    if time.time() - start_time > max_duration:
+                        raise TimeoutError("Generation timeout exceeded")
+                    
+                    article = self._call_format_agent_from_idea(
+                        conversation_id,
+                        selected_idea,
+                        readwise_content.get("content", ""),
+                        template_id=template_id,
+                        category=category,
+                        format=format_name
+                    )
+                    
+                    if article and len(article.strip()) > 50:  # Basic validation
+                        break
+                    else:
+                        raise ValueError("Generated article is too short or empty")
+                        
+                except Exception as e:
+                    retry_count += 1
+                    print(f"⚠️ Format Agent attempt {retry_count} failed: {e}")
+                    
+                    if retry_count >= max_retries:
+                        raise Exception(f"Failed to generate article after {max_retries} attempts. Last error: {e}")
+                    
+                    # Update retry count in state
+                    self.store.update_conversation_state(conversation_id, {
+                        "retry_count": retry_count,
+                        "last_error": str(e)
+                    })
+                    
+                    # Wait before retry (exponential backoff)
+                    time.sleep(min(2 ** retry_count, 10))
+            
+            # Update state with success
+            self.store.update_conversation_state(conversation_id, {
+                "status": "waiting_for_approval",
+                "final_output": article,
+                "waiting_for_user": True,
+                "generation_complete_time": time.time(),
+                "total_generation_time": time.time() - start_time
+            })
+            
+            print(f"✅ Article generated in {time.time() - start_time:.1f}s - waiting for user approval")
+            
+            return {
+                "status": "waiting_for_approval",
+                "conversation_id": conversation_id,
+                "final_output": article,
+                "selected_idea": selected_idea,
+                "generation_time": time.time() - start_time
+            }
+            
+        except Exception as e:
+            # Update state with error
+            self.store.update_conversation_state(conversation_id, {
+                "status": "error",
+                "error_message": str(e),
+                "error_time": time.time(),
+                "retry_count": retry_count
+            })
+            
+            print(f"❌ Error generating article: {e}")
+            raise
 
     def continue_after_user_input(self, conversation_id: str, user_response: str) -> Dict[str, Any]:
         """Continue conversation after user provides input"""
@@ -1026,30 +1115,42 @@ Generate 12 distinct content ideas using the framework above. Each idea should b
         Returns:
             Generated LinkedIn article
         """
+        import time
+        import signal
+        
         print(f"🎯 Format Agent (from idea): {selected_idea['pillar_type']}")
         
-        # Get Format Agent prompt
-        instructions = self.store.get_system_prompt("Format Agent") or ""
-        print(f"📝 Format Agent: Got instructions ({len(instructions)} chars)")
+        # Add timeout protection
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Format Agent API call timed out")
         
-        # Resolve template
-        template_text = None
-        chosen_template: Optional[Dict[str, Any]] = None
-        if template_id:
-            chosen_template = self.store.get_template_by_id(template_id)
-            print(f"📋 Format Agent: Using template by ID: {template_id}")
-        elif category and format:
-            chosen_template = self.store.get_latest_template_by_category_format(category, format)
-            print(f"📋 Format Agent: Using template by category/format: {category}/{format}")
+        # Set timeout for API call (2 minutes)
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(120)
         
-        if chosen_template and chosen_template.get("content"):
-            template_text = chosen_template["content"]
-            print(f"📋 Format Agent: Template loaded ({len(template_text)} chars)")
-        else:
-            print("📋 Format Agent: No template found")
-        
-        # Build rich input for Format Agent
-        input_text = f"""
+        try:
+            # Get Format Agent prompt
+            instructions = self.store.get_system_prompt("Format Agent") or ""
+            print(f"📝 Format Agent: Got instructions ({len(instructions)} chars)")
+            
+            # Resolve template
+            template_text = None
+            chosen_template: Optional[Dict[str, Any]] = None
+            if template_id:
+                chosen_template = self.store.get_template_by_id(template_id)
+                print(f"📋 Format Agent: Using template by ID: {template_id}")
+            elif category and format:
+                chosen_template = self.store.get_latest_template_by_category_format(category, format)
+                print(f"📋 Format Agent: Using template by category/format: {category}/{format}")
+            
+            if chosen_template and chosen_template.get("content"):
+                template_text = chosen_template["content"]
+                print(f"📋 Format Agent: Template loaded ({len(template_text)} chars)")
+            else:
+                print("📋 Format Agent: No template found")
+            
+            # Build rich input for Format Agent
+            input_text = f"""
 Create a complete, engaging LinkedIn post based on this content idea:
 
 # SELECTED IDEA
@@ -1081,52 +1182,66 @@ Write a complete, engaging LinkedIn post that:
 4. Is ready to publish (no placeholders or TODOs)
 5. Matches the {selected_idea['pillar_type']} format expectations
 """
-        
-        print(f"📤 Format Agent: Sending to gpt-5-mini ({len(input_text)} chars)")
-        
-        # Use gpt-5-mini with Responses API - higher effort for full article generation
-        response = self.client.responses.create(
-            model="gpt-5-mini",
-            instructions=instructions,
-            input=input_text,
-            reasoning={"effort": "high"},  # Higher effort since creating full article
-            text={"format": {"type": "text"}, "verbosity": "high"},
-        )
-        
-        print("📥 Format Agent: Got response from gpt-5-mini")
-        
-        # Extract content
-        content = getattr(response, "output_text", "") or ""
-        if not content:
-            for item in getattr(response, "output", []) or []:
-                for block in getattr(item, "content", []) or []:
-                    if getattr(block, "type", "") in ("output_text", "input_text"):
-                        text_val = getattr(block, "text", "") or ""
-                        if text_val:
-                            content = text_val
-                            break
-                if content:
-                    break
-        
-        # Store message
-        version_used = self.store.get_current_prompt_version("Format Agent") or None
-        self.store.add_message(
-            conversation_id,
-            "assistant",
-            content,
-            agent_name="Format Agent",
-            metadata={
-                "model": "gpt-5-mini",
-                "system_prompt_version": version_used,
-                "template_id": (chosen_template or {}).get("id") if chosen_template else None,
-                "template_category": category,
-                "template_format": format,
-                "selected_idea": selected_idea,
-                "generation_mode": "from_idea"  # Flag to indicate new workflow
-            },
-        )
-        
-        return content
+            
+            print(f"📤 Format Agent: Sending to gpt-5-mini ({len(input_text)} chars)")
+            
+            # Use gpt-5-mini with Responses API - higher effort for full article generation
+            response = self.client.responses.create(
+                model="gpt-5-mini",
+                instructions=instructions,
+                input=input_text,
+                reasoning={"effort": "high"},  # Higher effort since creating full article
+                text={"format": {"type": "text"}, "verbosity": "high"},
+            )
+            
+            print("📥 Format Agent: Got response from gpt-5-mini")
+            
+            # Extract content
+            content = getattr(response, "output_text", "") or ""
+            if not content:
+                for item in getattr(response, "output", []) or []:
+                    for block in getattr(item, "content", []) or []:
+                        if getattr(block, "type", "") in ("output_text", "input_text"):
+                            text_val = getattr(block, "text", "") or ""
+                            if text_val:
+                                content = text_val
+                                break
+                    if content:
+                        break
+            
+            # Validate content
+            if not content or len(content.strip()) < 50:
+                raise ValueError("Generated content is too short or empty")
+            
+            # Store message
+            version_used = self.store.get_current_prompt_version("Format Agent") or None
+            self.store.add_message(
+                conversation_id,
+                "assistant",
+                content,
+                agent_name="Format Agent",
+                metadata={
+                    "model": "gpt-5-mini",
+                    "system_prompt_version": version_used,
+                    "template_id": (chosen_template or {}).get("id") if chosen_template else None,
+                    "template_category": category,
+                    "template_format": format,
+                    "selected_idea": selected_idea,
+                    "generation_mode": "from_idea"  # Flag to indicate new workflow
+                },
+            )
+            
+            return content
+            
+        except TimeoutError as e:
+            print(f"⏰ Format Agent timeout: {e}")
+            raise
+        except Exception as e:
+            print(f"❌ Format Agent error: {e}")
+            raise
+        finally:
+            # Always cancel the alarm
+            signal.alarm(0)
 
     def _is_satisfaction_response(self, response: str) -> bool:
         """Check if user response indicates satisfaction"""

@@ -240,6 +240,8 @@ Send /post followed by your YAML input:
     @bot.message_handler(commands=['select'])
     def handle_select_command(message):
         """Select an idea and generate full article"""
+        import time
+        
         try:
             # Parse: /select <conversation_id> <idea_index>
             parts = message.text.replace('/select', '').strip().split()
@@ -251,37 +253,109 @@ Send /post followed by your YAML input:
             conv_id = parts[0]
             idea_index = int(parts[1]) - 1  # Convert to 0-indexed
             
-            # Send processing message
-            processing_msg = bot.reply_to(message, f"📝 Generating full article from idea #{idea_index + 1}...")
+            # Validate conversation ID format
+            if not conv_id or len(conv_id) < 3:
+                bot.reply_to(message, "❌ Invalid conversation ID. Please check the ID and try again.")
+                return
             
-            # Generate article from selected idea
-            result = coordinator.generate_from_idea(conv_id, idea_index)
+            # Send processing message with timeout info
+            processing_msg = bot.reply_to(message, f"📝 Generating full article from idea #{idea_index + 1}...\n⏱️ This may take up to 5 minutes")
             
-            if result.get("final_output"):
-                output = result["final_output"]
+            # Track start time
+            start_time = time.time()
+            max_duration = 300  # 5 minutes max
+            
+            try:
+                # Generate article from selected idea with timeout protection
+                result = coordinator.generate_from_idea(conv_id, idea_index)
                 
-                # Add metadata
-                selected_idea = result.get("selected_idea", {})
-                header = f"✅ **Generated from Idea #{idea_index + 1}**\n"
-                header += f"📌 {selected_idea.get('pillar_type', 'N/A')}\n\n"
+                # Check if we're still within timeout
+                if time.time() - start_time > max_duration:
+                    bot.edit_message_text(
+                        "⏰ Generation timed out after 5 minutes. Please try again with a different idea or contact support.",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
+                    return
                 
-                full_output = header + output
-                
-                # Send result
-                if len(full_output) > 4000:
-                    chunks = [full_output[i:i+4000] for i in range(0, len(full_output), 4000)]
-                    for i, chunk in enumerate(chunks):
-                        if i == 0:
-                            bot.edit_message_text(chunk, chat_id=message.chat.id, message_id=processing_msg.message_id)
-                        else:
-                            bot.send_message(message.chat.id, chunk)
+                if result.get("final_output"):
+                    output = result["final_output"]
+                    generation_time = result.get("generation_time", time.time() - start_time)
+                    
+                    # Add metadata
+                    selected_idea = result.get("selected_idea", {})
+                    header = f"✅ **Generated from Idea #{idea_index + 1}**\n"
+                    header += f"📌 {selected_idea.get('pillar_type', 'N/A')}\n"
+                    header += f"⏱️ Generated in {generation_time:.1f}s\n\n"
+                    
+                    full_output = header + output
+                    
+                    # Send result
+                    if len(full_output) > 4000:
+                        chunks = [full_output[i:i+4000] for i in range(0, len(full_output), 4000)]
+                        for i, chunk in enumerate(chunks):
+                            if i == 0:
+                                bot.edit_message_text(chunk, chat_id=message.chat.id, message_id=processing_msg.message_id)
+                            else:
+                                bot.send_message(message.chat.id, chunk)
+                    else:
+                        bot.edit_message_text(full_output, chat_id=message.chat.id, message_id=processing_msg.message_id)
                 else:
-                    bot.edit_message_text(full_output, chat_id=message.chat.id, message_id=processing_msg.message_id)
-            else:
-                bot.edit_message_text("❌ Failed to generate article. Please try again.", chat_id=message.chat.id, message_id=processing_msg.message_id)
+                    bot.edit_message_text(
+                        "❌ Failed to generate article. Please try again with a different idea.",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
+                    
+            except TimeoutError:
+                bot.edit_message_text(
+                    "⏰ Generation timed out. Please try again with a different idea.",
+                    chat_id=message.chat.id,
+                    message_id=processing_msg.message_id
+                )
+            except ValueError as e:
+                # Handle specific validation errors
+                error_msg = str(e)
+                if "No ideas found" in error_msg:
+                    bot.edit_message_text(
+                        "❌ No ideas found for this conversation. Please generate ideas first using /ideas command.",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
+                elif "Invalid idea index" in error_msg:
+                    bot.edit_message_text(
+                        f"❌ {error_msg}",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
+                else:
+                    bot.edit_message_text(
+                        f"❌ Validation error: {error_msg}",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
+            except Exception as e:
+                # Handle other errors
+                error_msg = str(e)
+                if "timeout" in error_msg.lower():
+                    bot.edit_message_text(
+                        "⏰ Generation timed out. Please try again.",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
+                else:
+                    bot.edit_message_text(
+                        f"❌ Error generating article: {error_msg}",
+                        chat_id=message.chat.id,
+                        message_id=processing_msg.message_id
+                    )
                 
+        except ValueError as e:
+            # Handle parsing errors
+            bot.reply_to(message, f"❌ Invalid input: {str(e)}\n\nUsage: /select <conversation_id> <idea_number>\nExample: /select abc123 3")
         except Exception as e:
-            bot.reply_to(message, f"❌ Error: {str(e)}")
+            # Handle unexpected errors
+            bot.reply_to(message, f"❌ Unexpected error: {str(e)}")
     
     @bot.message_handler(commands=['create_post'])
     def handle_create_post_command(message):
