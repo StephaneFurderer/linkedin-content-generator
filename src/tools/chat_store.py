@@ -1120,41 +1120,38 @@ Generate 12 distinct content ideas using the framework above. Each idea should b
             Generated LinkedIn article
         """
         import time
-        import signal
+        import threading
         
         print(f"🎯 Format Agent (from idea): {selected_idea['pillar_type']}")
         
-        # Add timeout protection
-        def timeout_handler(signum, frame):
-            raise TimeoutError("Format Agent API call timed out")
+        # Use threading-based timeout instead of signal (works in any thread)
+        result = {"content": None, "error": None}
+        chosen_template = None  # Initialize outside thread for scope
         
-        # Set timeout for API call (2 minutes)
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(120)
-        
-        try:
-            # Get Format Agent prompt
-            instructions = self.store.get_system_prompt("Format Agent") or ""
-            print(f"📝 Format Agent: Got instructions ({len(instructions)} chars)")
-            
-            # Resolve template
-            template_text = None
-            chosen_template: Optional[Dict[str, Any]] = None
-            if template_id:
-                chosen_template = self.store.get_template_by_id(template_id)
-                print(f"📋 Format Agent: Using template by ID: {template_id}")
-            elif category and format:
-                chosen_template = self.store.get_latest_template_by_category_format(category, format)
-                print(f"📋 Format Agent: Using template by category/format: {category}/{format}")
-            
-            if chosen_template and chosen_template.get("content"):
-                template_text = chosen_template["content"]
-                print(f"📋 Format Agent: Template loaded ({len(template_text)} chars)")
-            else:
-                print("📋 Format Agent: No template found")
-            
-            # Build rich input for Format Agent
-            input_text = f"""
+        def api_call():
+            try:
+                # Get Format Agent prompt
+                instructions = self.store.get_system_prompt("Format Agent") or ""
+                print(f"📝 Format Agent: Got instructions ({len(instructions)} chars)")
+                
+                # Resolve template
+                template_text = None
+                nonlocal chosen_template
+                if template_id:
+                    chosen_template = self.store.get_template_by_id(template_id)
+                    print(f"📋 Format Agent: Using template by ID: {template_id}")
+                elif category and format:
+                    chosen_template = self.store.get_latest_template_by_category_format(category, format)
+                    print(f"📋 Format Agent: Using template by category/format: {category}/{format}")
+                
+                if chosen_template and chosen_template.get("content"):
+                    template_text = chosen_template["content"]
+                    print(f"📋 Format Agent: Template loaded ({len(template_text)} chars)")
+                else:
+                    print("📋 Format Agent: No template found")
+                
+                # Build rich input for Format Agent
+                input_text = f"""
 Create a complete, engaging LinkedIn post based on this content idea:
 
 # SELECTED IDEA
@@ -1186,66 +1183,78 @@ Write a complete, engaging LinkedIn post that:
 4. Is ready to publish (no placeholders or TODOs)
 5. Matches the {selected_idea['pillar_type']} format expectations
 """
-            
-            print(f"📤 Format Agent: Sending to gpt-5-mini ({len(input_text)} chars)")
-            
-            # Use gpt-5-mini with Responses API - higher effort for full article generation
-            response = self.client.responses.create(
-                model="gpt-5-mini",
-                instructions=instructions,
-                input=input_text,
-                reasoning={"effort": "high"},  # Higher effort since creating full article
-                text={"format": {"type": "text"}, "verbosity": "high"},
-            )
-            
-            print("📥 Format Agent: Got response from gpt-5-mini")
-            
-            # Extract content
-            content = getattr(response, "output_text", "") or ""
-            if not content:
-                for item in getattr(response, "output", []) or []:
-                    for block in getattr(item, "content", []) or []:
-                        if getattr(block, "type", "") in ("output_text", "input_text"):
-                            text_val = getattr(block, "text", "") or ""
-                            if text_val:
-                                content = text_val
-                                break
-                    if content:
-                        break
-            
-            # Validate content
-            if not content or len(content.strip()) < 50:
-                raise ValueError("Generated content is too short or empty")
-            
-            # Store message
-            version_used = self.store.get_current_prompt_version("Format Agent") or None
-            self.store.add_message(
-                conversation_id,
-                "assistant",
-                content,
-                agent_name="Format Agent",
-                metadata={
-                    "model": "gpt-5-mini",
-                    "system_prompt_version": version_used,
-                    "template_id": (chosen_template or {}).get("id") if chosen_template else None,
-                    "template_category": category,
-                    "template_format": format,
-                    "selected_idea": selected_idea,
-                    "generation_mode": "from_idea"  # Flag to indicate new workflow
-                },
-            )
-            
-            return content
-            
-        except TimeoutError as e:
-            print(f"⏰ Format Agent timeout: {e}")
-            raise
-        except Exception as e:
-            print(f"❌ Format Agent error: {e}")
-            raise
-        finally:
-            # Always cancel the alarm
-            signal.alarm(0)
+                
+                print(f"📤 Format Agent: Sending to gpt-5-mini ({len(input_text)} chars)")
+                
+                # Use gpt-5-mini with Responses API - higher effort for full article generation
+                response = self.client.responses.create(
+                    model="gpt-5-mini",
+                    instructions=instructions,
+                    input=input_text,
+                    reasoning={"effort": "high"},  # Higher effort since creating full article
+                    text={"format": {"type": "text"}, "verbosity": "high"},
+                )
+                
+                print("📥 Format Agent: Got response from gpt-5-mini")
+                
+                # Extract content
+                content = getattr(response, "output_text", "") or ""
+                if not content:
+                    for item in getattr(response, "output", []) or []:
+                        for block in getattr(item, "content", []) or []:
+                            if getattr(block, "type", "") in ("output_text", "input_text"):
+                                text_val = getattr(block, "text", "") or ""
+                                if text_val:
+                                    content = text_val
+                                    break
+                        if content:
+                            break
+                
+                # Validate content
+                if not content or len(content.strip()) < 50:
+                    raise ValueError("Generated content is too short or empty")
+                
+                result["content"] = content
+                
+            except Exception as e:
+                print(f"❌ Format Agent error: {e}")
+                result["error"] = e
+        
+        # Start API call in thread with timeout
+        thread = threading.Thread(target=api_call)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=120)  # 2 minute timeout
+        
+        if thread.is_alive():
+            print("⏰ Format Agent timeout after 2 minutes")
+            raise TimeoutError("Format Agent API call timed out")
+        
+        if result["error"]:
+            raise result["error"]
+        
+        if not result["content"]:
+            raise ValueError("No content generated")
+        
+        # Store message
+        version_used = self.store.get_current_prompt_version("Format Agent") or None
+        self.store.add_message(
+            conversation_id,
+            "assistant",
+            result["content"],
+            agent_name="Format Agent",
+            metadata={
+                "model": "gpt-5-mini",
+                "system_prompt_version": version_used,
+                "template_id": (chosen_template or {}).get("id") if chosen_template else None,
+                "template_category": category,
+                "template_format": format,
+                "selected_idea": selected_idea,
+                "generation_mode": "from_idea"  # Flag to indicate new workflow
+            },
+        )
+        
+        return result["content"]
 
     def _is_satisfaction_response(self, response: str) -> bool:
         """Check if user response indicates satisfaction"""
